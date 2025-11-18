@@ -34,7 +34,7 @@ class JdbcBulkInsertProductRepository(
                 name = it.name,
                 price = it.price.amount.toLong(),
                 stock = it.stock,
-                message = "데이터를 삽입하던 도중 문제가 발생했습니다."
+                message = "중복된 상품 코드입니다. (코드: ${it.code.code})"
             )
         }
     }

@@ -1,0 +1,54 @@
+### 1. Success Scenario - Register 3000 products (all valid)
+< {%
+    const products = [];
+    for (let i = 1; i <= 3000; i++) {
+        products.push({
+            "name": `Product${String(i).padStart(4, '0')}`,
+            "price": 1000 + (i * 10),
+            "stock": 100 + i,
+            "code": `PROD-SUCCESS-${String(i).padStart(4, '0')}`
+        });
+    }
+    request.variables.set("successData", JSON.stringify({ products }));
+%}
+POST http://localhost:8080/api/v1/products
+Content-Type: application/json
+
+{{successData}}
+
+### 2. Failure Scenario - Register 3000 products (partial failure)
+# Every 100th: duplicate code and negative price (will fail)
+# Every 50th: empty name (will fail validation)
+# Others: valid data
+< {%
+    const products = [];
+    for (let i = 1; i <= 3000; i++) {
+        if (i % 100 === 0) {
+            products.push({
+                "name": `FailureProduct${String(i).padStart(4, '0')}`,
+                "price": -1000,
+                "stock": 50,
+                "code": "DUPLICATE-CODE"
+            });
+        } else if (i % 50 === 0) {
+            products.push({
+                "name": "",
+                "price": 5000,
+                "stock": 30,
+                "code": `PROD-FAIL-${String(i).padStart(4, '0')}`
+            });
+        } else {
+            products.push({
+                "name": `MixedProduct${String(i).padStart(4, '0')}`,
+                "price": 2000 + (i * 5),
+                "stock": 80 + i,
+                "code": `PROD-FAIL-${String(i).padStart(4, '0')}`
+            });
+        }
+    }
+    request.variables.set("failureData", JSON.stringify({ products }));
+%}
+POST http://localhost:8080/api/v1/products
+Content-Type: application/json
+
+{{failureData}}
