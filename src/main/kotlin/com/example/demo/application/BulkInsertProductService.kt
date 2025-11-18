@@ -6,18 +6,17 @@ import com.example.demo.domain.product.vo.Money
 import com.example.demo.domain.product.vo.ProductCode
 import com.example.demo.ui.dto.request.RegisterProductRequest
 import com.example.demo.ui.dto.response.RegisterProductResponse
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.dao.TransientDataAccessException
 import org.springframework.stereotype.Service
 import java.lang.Thread.sleep
 
 @Service
 class BulkInsertProductService(
-    private val bulkInsertProductRepository: BulkInsertProductRepository
+    private val bulkInsertProductRepository: BulkInsertProductRepository,
+    @Value("\${bulk-insert.chunk-size}") private val chunkSize: Int,
+    @Value("\${bulk-insert.retry-milliseconds}") private val retryMilliseconds: List<Long>
 ) {
-    companion object {
-        const val CHUNK_SIZE = 10 // 임의의 청크 사이즈
-        val RETRY_MILLISECONDS = listOf(2000L, 5000L) // 이 또한 임의의 수
-    }
 
     /**
      * 요구사항 : 대량의 Products를 삽입
@@ -44,7 +43,7 @@ class BulkInsertProductService(
         val failedProducts = mutableListOf<RegisterProductResponse.FailedRegisterProduct>()
         var retryProducts = mutableListOf<Product>()
 
-        products.chunked(CHUNK_SIZE).forEach {
+        products.chunked(chunkSize).forEach {
             // 엔티티 생성 과정에서 비즈니스 로직에서 1차 거름
             val validProducts = validateProducts(it, failedProducts)
 
@@ -57,14 +56,14 @@ class BulkInsertProductService(
         }
 
         // 재시도
-        for (millis in RETRY_MILLISECONDS) {
+        for (millis in retryMilliseconds) {
             if (retryProducts.isEmpty()) {
                 break
             }
             sleep(millis)
 
             val tmp = mutableListOf<Product>()
-            retryProducts.chunked(CHUNK_SIZE).forEach {
+            retryProducts.chunked(chunkSize).forEach {
                 try {
                     failedProducts.addAll(bulkInsertProductRepository.saveAllAndReturnFailed(it))
                 } catch (e: TransientDataAccessException) {

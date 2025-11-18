@@ -20,3 +20,7 @@ management:
     web:
       exposure:
         include: health, prometheus
+
+bulk-insert:
+  chunk-size: 10
+  retry-milliseconds: 2000,5000

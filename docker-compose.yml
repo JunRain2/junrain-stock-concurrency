@@ -40,6 +40,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: 1234
     ports:
       - "8080:8080"
+    volumes:
+      - ./src/main/resources/application.yml:/app/config/application.yml:ro
     depends_on:
       mysql:
         condition: service_healthy
