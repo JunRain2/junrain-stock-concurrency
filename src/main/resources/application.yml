@@ -15,10 +15,8 @@ spring:
     password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-#    lock:
-#      jdbc-url: jdbc:mysql://localhost:3306/foo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-#      username: root
-#      password: 1234
-#      driver-class-name: com.mysql.cj.jdbc.Driver
-
-
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
