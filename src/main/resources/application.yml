@@ -22,5 +22,5 @@ management:
         include: health, prometheus
 
 bulk-insert:
-  chunk-size: 10
+  chunk-size: 1000
   retry-milliseconds: 2000,5000
