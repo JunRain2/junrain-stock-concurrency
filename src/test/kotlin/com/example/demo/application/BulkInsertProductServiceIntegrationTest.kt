@@ -1,10 +1,9 @@
 package com.example.demo.application
 
 import com.example.demo.domain.product.ProductRepository
-import com.example.demo.ui.dto.request.RegisterProductRequest
+import com.example.demo.ui.dto.request.BulkRegisterProductRequest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -72,19 +71,19 @@ class BulkInsertProductServiceIntegrationTest {
     fun `should not save products that fail business validation`() {
         // given
         val products = listOf(
-            RegisterProductRequest.RegisterProduct(
+            BulkRegisterProductRequest.RegisterProduct(
                 name = "",
                 price = 1000L,
                 stock = 10L,
                 code = "P001"
             ),
-            RegisterProductRequest.RegisterProduct(
+            BulkRegisterProductRequest.RegisterProduct(
                 name = "상품명이너무길어서스무자를초과합니다매우길죠",
                 price = 2000L,
                 stock = 20L,
                 code = "P002"
             ),
-            RegisterProductRequest.RegisterProduct(
+            BulkRegisterProductRequest.RegisterProduct(
                 name = "정상상품",
                 price = 3000L,
                 stock = 30L,
@@ -128,13 +127,13 @@ class BulkInsertProductServiceIntegrationTest {
     fun `should handle mixed scenario with validation failures, duplicates, and successes`() {
         // given: 먼저 일부 상품 등록
         val existingProducts = listOf(
-            RegisterProductRequest.RegisterProduct(
+            BulkRegisterProductRequest.RegisterProduct(
                 name = "기존상품1",
                 price = 1000L,
                 stock = 10L,
                 code = "P001"
             ),
-            RegisterProductRequest.RegisterProduct(
+            BulkRegisterProductRequest.RegisterProduct(
                 name = "기존상품2",
                 price = 2000L,
                 stock = 20L,
@@ -146,13 +145,13 @@ class BulkInsertProductServiceIntegrationTest {
         // when: 검증 실패 + 중복 + 성공 포함
         val newProducts = listOf(
             // 검증 실패
-            RegisterProductRequest.RegisterProduct("", 1000L, 10L, "P010"),
+            BulkRegisterProductRequest.RegisterProduct("", 1000L, 10L, "P010"),
             // 중복
-            RegisterProductRequest.RegisterProduct("중복상품", 1000L, 10L, "P001"),
+            BulkRegisterProductRequest.RegisterProduct("중복상품", 1000L, 10L, "P001"),
             // 성공
-            RegisterProductRequest.RegisterProduct("신규상품1", 3000L, 30L, "P003"),
-            RegisterProductRequest.RegisterProduct("신규상품2", 4000L, 40L, "P004"),
-            RegisterProductRequest.RegisterProduct("신규상품3", 5000L, 50L, "P005")
+            BulkRegisterProductRequest.RegisterProduct("신규상품1", 3000L, 30L, "P003"),
+            BulkRegisterProductRequest.RegisterProduct("신규상품2", 4000L, 40L, "P004"),
+            BulkRegisterProductRequest.RegisterProduct("신규상품3", 5000L, 50L, "P005")
         )
 
         val result = bulkInsertProductService.registerProducts(newProducts)
@@ -171,7 +170,7 @@ class BulkInsertProductServiceIntegrationTest {
     @Test
     fun `should handle empty product list`() {
         // given
-        val products = emptyList<RegisterProductRequest.RegisterProduct>()
+        val products = emptyList<BulkRegisterProductRequest.RegisterProduct>()
 
         // when
         val result = bulkInsertProductService.registerProducts(products)
@@ -207,7 +206,7 @@ class BulkInsertProductServiceIntegrationTest {
     fun `should fail when price is negative`() {
         // given
         val products = listOf(
-            RegisterProductRequest.RegisterProduct(
+            BulkRegisterProductRequest.RegisterProduct(
                 name = "상품1",
                 price = -1000L,
                 stock = 10L,
@@ -232,7 +231,7 @@ class BulkInsertProductServiceIntegrationTest {
     fun `should fail when stock is negative`() {
         // given
         val products = listOf(
-            RegisterProductRequest.RegisterProduct(
+            BulkRegisterProductRequest.RegisterProduct(
                 name = "상품1",
                 price = 1000L,
                 stock = -10L,
@@ -257,7 +256,7 @@ class BulkInsertProductServiceIntegrationTest {
     fun `should fail when product name contains special characters`() {
         // given
         val products = listOf(
-            RegisterProductRequest.RegisterProduct(
+            BulkRegisterProductRequest.RegisterProduct(
                 name = "상품@#$",
                 price = 1000L,
                 stock = 10L,
@@ -279,9 +278,9 @@ class BulkInsertProductServiceIntegrationTest {
     }
 
     // 헬퍼 메서드
-    private fun createValidProducts(count: Int): List<RegisterProductRequest.RegisterProduct> {
+    private fun createValidProducts(count: Int): List<BulkRegisterProductRequest.RegisterProduct> {
         return (1..count).map {
-            RegisterProductRequest.RegisterProduct(
+            BulkRegisterProductRequest.RegisterProduct(
                 name = "상품$it",
                 price = (it * 1000).toLong(),
                 stock = (it * 10).toLong(),

@@ -1,9 +1,8 @@
 package com.example.demo.application
 
 import com.example.demo.domain.product.BulkInsertProductRepository
-import com.example.demo.domain.product.Product
-import com.example.demo.ui.dto.request.RegisterProductRequest
-import com.example.demo.ui.dto.response.RegisterProductResponse
+import com.example.demo.ui.dto.request.BulkRegisterProductRequest
+import com.example.demo.ui.dto.response.BulkRegisterProductResponse
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -52,7 +51,7 @@ class BulkInsertProductServiceTest {
     @Test
     fun `빈 리스트가 입력되면 성공 0 실패 0이어야 한다`() {
         // given
-        val products = emptyList<RegisterProductRequest.RegisterProduct>()
+        val products = emptyList<BulkRegisterProductRequest.RegisterProduct>()
 
         // when
         val result = bulkInsertProductService.registerProducts(products)
@@ -68,7 +67,7 @@ class BulkInsertProductServiceTest {
     fun `상품명이 빈 문자열일 경우 검증 실패해야 한다`() {
         // given
         val products = listOf(
-            RegisterProductRequest.RegisterProduct(
+            BulkRegisterProductRequest.RegisterProduct(
                 name = "",
                 price = 1000L,
                 stock = 10L,
@@ -92,7 +91,7 @@ class BulkInsertProductServiceTest {
     fun `상품명이 20자를 초과하면 검증 실패해야 한다`() {
         // given
         val products = listOf(
-            RegisterProductRequest.RegisterProduct(
+            BulkRegisterProductRequest.RegisterProduct(
                 name = "이것은매우긴상품명입니다정말로매우길어요정말매우길다",
                 price = 1000L,
                 stock = 10L,
@@ -115,7 +114,7 @@ class BulkInsertProductServiceTest {
     fun `상품명에 특수문자가 포함되면 검증 실패해야 한다`() {
         // given
         val products = listOf(
-            RegisterProductRequest.RegisterProduct(
+            BulkRegisterProductRequest.RegisterProduct(
                 name = "상품명@#$",
                 price = 1000L,
                 stock = 10L,
@@ -138,7 +137,7 @@ class BulkInsertProductServiceTest {
     fun `가격이 음수이면 검증 실패해야 한다`() {
         // given
         val products = listOf(
-            RegisterProductRequest.RegisterProduct(
+            BulkRegisterProductRequest.RegisterProduct(
                 name = "상품1",
                 price = -1000L,
                 stock = 10L,
@@ -161,7 +160,7 @@ class BulkInsertProductServiceTest {
     fun `재고가 음수이면 검증 실패해야 한다`() {
         // given
         val products = listOf(
-            RegisterProductRequest.RegisterProduct(
+            BulkRegisterProductRequest.RegisterProduct(
                 name = "상품1",
                 price = 1000L,
                 stock = -10L,
@@ -185,7 +184,7 @@ class BulkInsertProductServiceTest {
         // given
         val products = createValidProducts(3)
         val dbFailedProducts = listOf(
-            RegisterProductResponse.FailedRegisterProduct(
+            BulkRegisterProductResponse.FailedRegisterProduct(
                 name = "상품1",
                 price = 1000L,
                 stock = 10L,
@@ -209,19 +208,19 @@ class BulkInsertProductServiceTest {
     fun `비즈니스 검증 실패와 DB 저장 실패가 함께 발생해야 한다`() {
         // given
         val products = listOf(
-            RegisterProductRequest.RegisterProduct(
+            BulkRegisterProductRequest.RegisterProduct(
                 name = "",
                 price = 1000L,
                 stock = 10L,
                 code = "P001"
             ),
-            RegisterProductRequest.RegisterProduct(
+            BulkRegisterProductRequest.RegisterProduct(
                 name = "상품2",
                 price = 2000L,
                 stock = 20L,
                 code = "P002"
             ),
-            RegisterProductRequest.RegisterProduct(
+            BulkRegisterProductRequest.RegisterProduct(
                 name = "상품3",
                 price = 3000L,
                 stock = 30L,
@@ -230,7 +229,7 @@ class BulkInsertProductServiceTest {
         )
 
         val dbFailedProducts = listOf(
-            RegisterProductResponse.FailedRegisterProduct(
+            BulkRegisterProductResponse.FailedRegisterProduct(
                 name = "상품2",
                 price = 2000L,
                 stock = 20L,
@@ -288,7 +287,7 @@ class BulkInsertProductServiceTest {
         // given
         val products = listOf(
             // 첫 번째 청크: 검증 실패 1개 + 성공 9개
-            RegisterProductRequest.RegisterProduct("", 1000L, 10L, "P001"),
+            BulkRegisterProductRequest.RegisterProduct("", 1000L, 10L, "P001"),
             *createValidProducts(9).toTypedArray(),
             // 두 번째 청크: 모두 성공
             *createValidProducts(10).toTypedArray()
@@ -408,13 +407,13 @@ class BulkInsertProductServiceTest {
         // given
         val products = listOf(
             // 검증 실패
-            RegisterProductRequest.RegisterProduct("", 1000L, 10L, "P001"),
+            BulkRegisterProductRequest.RegisterProduct("", 1000L, 10L, "P001"),
             // 정상 상품들
             *createValidProducts(25).toTypedArray()
         )
 
         val dbFailedProducts = listOf(
-            RegisterProductResponse.FailedRegisterProduct(
+            BulkRegisterProductResponse.FailedRegisterProduct(
                 name = "상품1",
                 price = 1000L,
                 stock = 10L,
@@ -444,7 +443,7 @@ class BulkInsertProductServiceTest {
         // given
         val products = createValidProducts(10)
         val dbFailedProducts = listOf(
-            RegisterProductResponse.FailedRegisterProduct(
+            BulkRegisterProductResponse.FailedRegisterProduct(
                 name = "상품1",
                 price = 1000L,
                 stock = 10L,
@@ -466,9 +465,9 @@ class BulkInsertProductServiceTest {
     }
 
     // 헬퍼 메서드
-    private fun createValidProducts(count: Int): List<RegisterProductRequest.RegisterProduct> {
+    private fun createValidProducts(count: Int): List<BulkRegisterProductRequest.RegisterProduct> {
         return (1..count).map {
-            RegisterProductRequest.RegisterProduct(
+            BulkRegisterProductRequest.RegisterProduct(
                 name = "상품$it",
                 price = (it * 1000).toLong(),
                 stock = (it * 10).toLong(),

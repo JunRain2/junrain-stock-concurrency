@@ -51,7 +51,7 @@ class ProductServiceConcurrencyTest {
         repeat(threadCount) {
             executorService.submit {
                 try {
-                    productService.purchaseWithLock(product.id, 1)
+                    productService.decreaseStock(product.id, 1)
                 } catch (e: Exception) {
                     println("Purchase failed: ${e.message}")
                 } finally {
@@ -91,7 +91,7 @@ class ProductServiceConcurrencyTest {
         repeat(threadCount) {
             executorService.submit {
                 try {
-                    productService.purchaseWithLock(product.id, 1)
+                    productService.decreaseStock(product.id, 1)
                     successCount.incrementAndGet()
                 } catch (e: Exception) {
                     failCount.incrementAndGet()
@@ -138,7 +138,7 @@ class ProductServiceConcurrencyTest {
         repeat(threadCount) {
             executorService.submit {
                 try {
-                    productService.purchaseWithLock(product.id, quantityPerPurchase)
+                    productService.decreaseStock(product.id, quantityPerPurchase)
                     successCount.incrementAndGet()
                 } catch (e: Exception) {
                     println("Purchase failed: ${e.message}")

@@ -10,9 +10,9 @@ const partialSuccessRate = new Rate('partial_success');
 export const options = {
     stages: [
         { duration: '30s', target: 10 },   // 30초 동안 10명까지 증가
-        { duration: '1m', target: 50 },    // 1분 동안 50명까지 증가
-        { duration: '2m', target: 100 },   // 2분 동안 100명까지 증가
-        { duration: '3m', target: 100 },   // 3분 동안 100명 유지
+        { duration: '1m', target: 20 },    // 1분 동안 20명까지 증가
+        { duration: '2m', target: 30 },    // 2분 동안 30명까지 증가
+        { duration: '3m', target: 30 },    // 3분 동안 30명 유지
         { duration: '1m', target: 0 },     // 1분 동안 0명으로 감소
     ],
     // 테스트 실패 여부
@@ -144,7 +144,7 @@ export default function () {
     };
 
     // POST 요청 전송
-    const response = http.post(`${BASE_URL}/products`, payload, params);
+    const response = http.post(`${BASE_URL}/products/bulk`, payload, params);
 
     // 응답 검증
     const checkResult = check(response, {

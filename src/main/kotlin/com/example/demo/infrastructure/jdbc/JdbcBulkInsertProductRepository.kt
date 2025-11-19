@@ -2,7 +2,7 @@ package com.example.demo.infrastructure.jdbc
 
 import com.example.demo.domain.product.BulkInsertProductRepository
 import com.example.demo.domain.product.Product
-import com.example.demo.ui.dto.response.RegisterProductResponse
+import com.example.demo.ui.dto.response.BulkRegisterProductResponse
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Repository
 
@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository
 class JdbcBulkInsertProductRepository(
     private val jdbcTemplate: JdbcTemplate
 ) : BulkInsertProductRepository {
-    override fun saveAllAndReturnFailed(products: List<Product>): List<RegisterProductResponse.FailedRegisterProduct> {
+    override fun saveAllAndReturnFailed(products: List<Product>): List<BulkRegisterProductResponse.FailedRegisterProduct> {
         val sql = """
             INSERT IGNORE INTO product (name, code, amount, currency_code, stock)
             VALUES (?, ?, ?, ?, ?)
@@ -30,7 +30,7 @@ class JdbcBulkInsertProductRepository(
         return products.filterIndexed { idx, _ ->
             idx < results.size && results[idx] != 1
         }.map {
-            RegisterProductResponse.FailedRegisterProduct(
+            BulkRegisterProductResponse.FailedRegisterProduct(
                 name = it.name,
                 price = it.price.amount.toLong(),
                 stock = it.stock,

@@ -1,11 +1,11 @@
 package com.example.demo.application
 
-import com.example.demo.domain.product.BulkInsertProductRepository
 import com.example.demo.domain.product.Product
+import com.example.demo.domain.product.ProductRepository
 import com.example.demo.domain.product.vo.Money
 import com.example.demo.domain.product.vo.ProductCode
-import com.example.demo.ui.dto.request.RegisterProductRequest
-import com.example.demo.ui.dto.response.RegisterProductResponse
+import com.example.demo.ui.dto.request.BulkRegisterProductRequest
+import com.example.demo.ui.dto.response.BulkRegisterProductResponse
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.dao.TransientDataAccessException
 import org.springframework.stereotype.Service
@@ -13,11 +13,10 @@ import java.lang.Thread.sleep
 
 @Service
 class BulkInsertProductService(
-    private val bulkInsertProductRepository: BulkInsertProductRepository,
-    @Value("\${bulk-insert.chunk-size}") private val chunkSize: Int,
-    @Value("\${bulk-insert.retry-milliseconds}") private val retryMilliseconds: List<Long>
+    private val productRepository: ProductRepository,
+    @param:Value("\${bulk-insert.chunk-size}") private val chunkSize: Int,
+    @param:Value("\${bulk-insert.retry-milliseconds}") private val retryMilliseconds: List<Long>
 ) {
-
     /**
      * 요구사항 : 대량의 Products를 삽입
      *
@@ -37,10 +36,10 @@ class BulkInsertProductService(
      *
      *  데이터를 병렬 처리해도 문제가 크게 안생길 것 같음
      */
-    fun registerProducts(request: RegisterProductRequest): RegisterProductResponse {
+    fun registerProducts(request: BulkRegisterProductRequest): BulkRegisterProductResponse {
         val products = request.products
 
-        val failedProducts = mutableListOf<RegisterProductResponse.FailedRegisterProduct>()
+        val failedProducts = mutableListOf<BulkRegisterProductResponse.FailedRegisterProduct>()
         var retryProducts = mutableListOf<Product>()
 
         products.chunked(chunkSize).forEach {
@@ -49,7 +48,7 @@ class BulkInsertProductService(
 
             // DB에 저장 실패한 값
             try {
-                failedProducts.addAll(bulkInsertProductRepository.saveAllAndReturnFailed(validProducts))
+                failedProducts.addAll(productRepository.saveAllAndReturnFailed(validProducts))
             } catch (e: TransientDataAccessException) {
                 retryProducts.addAll(validProducts)
             }
@@ -65,7 +64,7 @@ class BulkInsertProductService(
             val tmp = mutableListOf<Product>()
             retryProducts.chunked(chunkSize).forEach {
                 try {
-                    failedProducts.addAll(bulkInsertProductRepository.saveAllAndReturnFailed(it))
+                    failedProducts.addAll(productRepository.saveAllAndReturnFailed(it))
                 } catch (e: TransientDataAccessException) {
                     tmp.addAll(it)
                 }
@@ -75,7 +74,7 @@ class BulkInsertProductService(
 
         // 재시도 실패한 데이터를 삽입
         failedProducts.addAll(retryProducts.map {
-            RegisterProductResponse.FailedRegisterProduct(
+            BulkRegisterProductResponse.FailedRegisterProduct(
                 name = it.name,
                 price = it.price.amount.toLong(),
                 stock = it.stock,
@@ -83,7 +82,7 @@ class BulkInsertProductService(
             )
         })
 
-        return RegisterProductResponse(
+        return BulkRegisterProductResponse(
             successCount = products.size - failedProducts.size,
             failureCount = failedProducts.size,
             failedProducts = failedProducts
@@ -92,8 +91,8 @@ class BulkInsertProductService(
 
 
     private fun validateProducts(
-        chunk: List<RegisterProductRequest.RegisterProduct>,
-        failureProducts: MutableList<RegisterProductResponse.FailedRegisterProduct>
+        chunk: List<BulkRegisterProductRequest.RegisterProduct>,
+        failureProducts: MutableList<BulkRegisterProductResponse.FailedRegisterProduct>
     ): List<Product> {
         // 전부 Product로 만듦으로써 유효성 검사를 진행
         val products = chunk.mapNotNull {
@@ -106,7 +105,7 @@ class BulkInsertProductService(
                 )
             } catch (e: IllegalArgumentException) {
                 failureProducts.add(
-                    RegisterProductResponse.FailedRegisterProduct(
+                    BulkRegisterProductResponse.FailedRegisterProduct(
                         name = it.name,
                         price = it.price,
                         stock = it.stock,
