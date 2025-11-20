@@ -8,5 +8,5 @@ package com.example.demo.global.contract
  */
 abstract class BusinessException(
     val errorCode: ErrorCode,
-    customMessage: String?
+    customMessage: String? = null
 ) : RuntimeException(customMessage)

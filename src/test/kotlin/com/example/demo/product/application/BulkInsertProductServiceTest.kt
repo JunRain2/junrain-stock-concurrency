@@ -1,5 +1,8 @@
 package com.example.demo.product.application
 
+import com.example.demo.company.entity.Company
+import com.example.demo.company.entity.CompanyRepository
+import com.example.demo.product.application.dto.command.ProductBulkRegisterCommand
 import com.example.demo.product.domain.product.BulkInsertProductRepository
 import com.example.demo.product.ui.dto.request.BulkRegisterProductRequest
 import com.example.demo.product.ui.dto.response.BulkRegisterProductResponse
@@ -11,6 +14,7 @@ import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.*
 import org.springframework.dao.TransientDataAccessException
+import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -23,12 +27,25 @@ class BulkInsertProductServiceTest {
     @Mock
     private lateinit var bulkInsertProductRepository: BulkInsertProductRepository
 
-    @InjectMocks
-    private lateinit var bulkInsertProductService: BulkRegisterProductService
+    @Mock
+    private lateinit var companyRepository: CompanyRepository
+
+    private lateinit var bulkInsertProductService: ProductBulkRegisterService
+
+    private val testCompany = Company(id = 1L, name = "Test Company")
 
     @BeforeEach
     fun setUp() {
         // Mock 초기화는 @ExtendWith(MockitoExtension::class)에 의해 자동으로 수행됨
+        whenever(companyRepository.findById(1L)).thenReturn(Optional.of(testCompany))
+
+        // ProductBulkRegisterService 수동 생성 (chunkSize, retryMilliseconds 필요)
+        bulkInsertProductService = ProductBulkRegisterService(
+            productRepository = bulkInsertProductRepository,
+            companyRepository = companyRepository,
+            chunkSize = 10,
+            retryMilliseconds = listOf(100L, 200L)
+        )
     }
 
     @Test
@@ -39,7 +56,9 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList())
 
         // when
-        val result = bulkInsertProductService.registerProducts(BulkRegisterProductRequest(products))
+        val request = BulkRegisterProductRequest(products)
+        val command = ProductBulkRegisterCommand.of(testCompany.id, request)
+        val result = bulkInsertProductService.registerProducts(command)
 
         // then
         assertEquals(5, result.successCount)
@@ -54,7 +73,7 @@ class BulkInsertProductServiceTest {
         val products = emptyList<BulkRegisterProductRequest.RegisterProduct>()
 
         // when
-        val result = bulkInsertProductService.registerProducts(BulkRegisterProductRequest(products))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(0, result.successCount)
@@ -78,7 +97,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList())
 
         // when
-        val result = bulkInsertProductService.registerProducts(BulkRegisterProductRequest(products))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(0, result.successCount)
@@ -102,7 +121,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList())
 
         // when
-        val result = bulkInsertProductService.registerProducts(BulkRegisterProductRequest(products))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(0, result.successCount)
@@ -125,7 +144,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList())
 
         // when
-        val result = bulkInsertProductService.registerProducts(BulkRegisterProductRequest(products))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(0, result.successCount)
@@ -148,7 +167,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList())
 
         // when
-        val result = bulkInsertProductService.registerProducts(BulkRegisterProductRequest(products))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(0, result.successCount)
@@ -171,7 +190,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList())
 
         // when
-        val result = bulkInsertProductService.registerProducts(BulkRegisterProductRequest(products))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(0, result.successCount)
@@ -195,7 +214,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(dbFailedProducts)
 
         // when
-        val result = bulkInsertProductService.registerProducts(BulkRegisterProductRequest(products))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(2, result.successCount)
@@ -240,7 +259,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(dbFailedProducts)
 
         // when
-        val result = bulkInsertProductService.registerProducts(BulkRegisterProductRequest(products))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(1, result.successCount) // 상품3만 성공
@@ -258,7 +277,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList())
 
         // when
-        val result = bulkInsertProductService.registerProducts(BulkRegisterProductRequest(products))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(25, result.successCount)
@@ -274,7 +293,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList())
 
         // when
-        val result = bulkInsertProductService.registerProducts(BulkRegisterProductRequest(products))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(10, result.successCount)
@@ -297,7 +316,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList())
 
         // when
-        val result = bulkInsertProductService.registerProducts(BulkRegisterProductRequest(products))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(19, result.successCount)
@@ -314,7 +333,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList()) // 첫 재시도에서 성공
 
         // when
-        val result = bulkInsertProductService.registerProducts(BulkRegisterProductRequest(products))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(5, result.successCount)
@@ -332,7 +351,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList()) // 두 번째 재시도에서 성공
 
         // when
-        val result = bulkInsertProductService.registerProducts(BulkRegisterProductRequest(products))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(5, result.successCount)
@@ -348,7 +367,7 @@ class BulkInsertProductServiceTest {
             .thenThrow(TestTransientDataAccessException("일시적 DB 오류"))
 
         // when
-        val result = bulkInsertProductService.registerProducts(BulkRegisterProductRequest(products))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(0, result.successCount)
@@ -370,7 +389,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList()) // 재시도 시 성공
 
         // when
-        val result = bulkInsertProductService.registerProducts(BulkRegisterProductRequest(products))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(20, result.successCount)
@@ -391,7 +410,7 @@ class BulkInsertProductServiceTest {
             .thenThrow(TestTransientDataAccessException("일시적 DB 오류")) // 두 번째 재시도: 세 번째 청크 여전히 실패
 
         // when
-        val result = bulkInsertProductService.registerProducts(BulkRegisterProductRequest(products))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(20, result.successCount) // 첫 번째 + 두 번째 청크 성공
@@ -428,7 +447,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList()) // 재시도 성공
 
         // when
-        val result = bulkInsertProductService.registerProducts(BulkRegisterProductRequest(products))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(24, result.successCount) // 총 26개 중 검증실패 1개, DB실패 1개
@@ -456,7 +475,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(dbFailedProducts) // 재시도 시 일부 DB 실패
 
         // when
-        val result = bulkInsertProductService.registerProducts(BulkRegisterProductRequest(products))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(9, result.successCount)

@@ -1,11 +1,12 @@
 package com.example.demo.product.application
 
-import com.example.demo.product.application.PurchaseProductService
+import com.example.demo.company.entity.Company
+import com.example.demo.company.entity.CompanyRepository
+import com.example.demo.product.application.dto.command.PurchaseProductCommand
 import com.example.demo.product.domain.product.Product
 import com.example.demo.product.domain.product.ProductRepository
 import com.example.demo.product.domain.product.vo.Money
 import com.example.demo.product.domain.product.vo.ProductCode
-import com.example.demo.product.ui.dto.request.PurchaseProductRequest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -20,19 +21,27 @@ import kotlin.test.assertEquals
 class ProductServiceConcurrencyTest {
 
     @Autowired
-    private lateinit var purchaseProductService: PurchaseProductService
+    private lateinit var productPurchaseService: ProductPurchaseService
 
     @Autowired
     private lateinit var productRepository: ProductRepository
 
+    @Autowired
+    private lateinit var companyRepository: CompanyRepository
+
+    private lateinit var testCompany: Company
+
     @BeforeEach
     fun setUp() {
         productRepository.deleteAll()
+        companyRepository.deleteAll()
+        testCompany = companyRepository.save(Company(name = "Test Company"))
     }
 
     @AfterEach
     fun tearDown() {
         productRepository.deleteAll()
+        companyRepository.deleteAll()
     }
 
     @Test
@@ -41,7 +50,11 @@ class ProductServiceConcurrencyTest {
         val initialStock = 100
         val product = productRepository.save(
             Product(
-                name = "테스트 상품", code = ProductCode("TEST001"), price = Money.of(10000), stock = initialStock.toLong()
+                company = testCompany,
+                name = "테스트 상품",
+                code = ProductCode("TEST001"),
+                price = Money.of(10000),
+                stock = initialStock.toLong()
             )
         )
 
@@ -53,7 +66,7 @@ class ProductServiceConcurrencyTest {
         repeat(threadCount) {
             executorService.submit {
                 try {
-                    purchaseProductService.decreaseStock(product.id, PurchaseProductRequest(1))
+                    productPurchaseService.decreaseStock(PurchaseProductCommand(product.id, 1))
                 } catch (e: Exception) {
                     println("Purchase failed: ${e.message}")
                 } finally {
@@ -76,6 +89,7 @@ class ProductServiceConcurrencyTest {
         val initialStock = 10
         val product = productRepository.save(
             Product(
+                company = testCompany,
                 name = "테스트 상품",
                 code = ProductCode("TEST002"),
                 price = Money.of(10000),
@@ -93,7 +107,7 @@ class ProductServiceConcurrencyTest {
         repeat(threadCount) {
             executorService.submit {
                 try {
-                    purchaseProductService.decreaseStock(product.id, PurchaseProductRequest(1))
+                    productPurchaseService.decreaseStock(PurchaseProductCommand(product.id, 1))
                     successCount.incrementAndGet()
                 } catch (e: Exception) {
                     failCount.incrementAndGet()
@@ -123,6 +137,7 @@ class ProductServiceConcurrencyTest {
         val initialStock = 1000
         val product = productRepository.save(
             Product(
+                company = testCompany,
                 name = "테스트 상품",
                 code = ProductCode("TEST003"),
                 price = Money.of(10000),
@@ -140,7 +155,7 @@ class ProductServiceConcurrencyTest {
         repeat(threadCount) {
             executorService.submit {
                 try {
-                    purchaseProductService.decreaseStock(product.id, PurchaseProductRequest(quantityPerPurchase))
+                    productPurchaseService.decreaseStock(PurchaseProductCommand(product.id, quantityPerPurchase))
                     successCount.incrementAndGet()
                 } catch (e: Exception) {
                     println("Purchase failed: ${e.message}")

@@ -12,8 +12,8 @@ class JdbcBulkInsertProductRepository(
 ) : BulkInsertProductRepository {
     override fun saveAllAndReturnFailed(products: List<Product>): List<BulkRegisterProductResponse.FailedRegisterProduct> {
         val sql = """
-            INSERT IGNORE INTO product (name, code, amount, currency_code, stock)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT IGNORE INTO product (name, product_code, product_price, product_currency_code, stock, owner_id)
+            VALUES (?, ?, ?, ?, ?, ?)
         """.trimIndent()
 
         val affectedRows = jdbcTemplate.batchUpdate(sql, products, products.size) { ps, product ->
@@ -22,6 +22,7 @@ class JdbcBulkInsertProductRepository(
             ps.setBigDecimal(3, product.price.amount)
             ps.setString(4, product.price.currencyCode.name)
             ps.setLong(5, product.stock)
+            ps.setLong(6, product.ownerId)
         }
 
         // batchUpdate returns Array<IntArray>, flatten to get individual results

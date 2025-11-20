@@ -1,11 +1,13 @@
 package com.example.demo.product.infrastructure.jdbc
 
+import com.example.demo.company.entity.Company
+import com.example.demo.company.entity.CompanyRepository
 import com.example.demo.product.domain.product.Product
 import com.example.demo.product.domain.product.ProductRepository
 import com.example.demo.product.domain.product.vo.Money
 import com.example.demo.product.domain.product.vo.ProductCode
-import com.example.demo.product.infrastructure.jdbc.JdbcBulkInsertProductRepository
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -20,9 +22,20 @@ class JdbcBulkInsertProductRepositoryTest {
     @Autowired
     private lateinit var productRepository: ProductRepository
 
+    @Autowired
+    private lateinit var companyRepository: CompanyRepository
+
+    private lateinit var testCompany: Company
+
+    @BeforeEach
+    fun setup() {
+        testCompany = companyRepository.save(Company(name = "Test Company"))
+    }
+
     @AfterEach
     fun cleanup() {
         productRepository.deleteAll()
+        companyRepository.deleteAll()
     }
 
     @Test
@@ -67,7 +80,7 @@ class JdbcBulkInsertProductRepositoryTest {
         assertEquals("Duplicate Product", failed.name)
         assertEquals(20000L, failed.price)
         assertEquals(100L, failed.stock)
-        assertEquals("데이터를 삽입하던 도중 문제가 발생했습니다.", failed.message)
+        assertEquals("중복된 상품 코드입니다. (코드: DUPLICATE)", failed.message)
 
         // 성공한 2개는 DB에 저장되었는지 확인
         val savedCount = productRepository.count()
@@ -147,7 +160,7 @@ class JdbcBulkInsertProductRepositoryTest {
         val failed = failedProducts.first()
         assertEquals("Duplicate", failed.name)
         assertEquals(20000L, failed.price)
-        assertEquals("데이터를 삽입하던 도중 문제가 발생했습니다.", failed.message)
+        assertEquals("중복된 상품 코드입니다. (코드: ${duplicateProduct.code.code})", failed.message)
 
         // DB에는 기존 1개만 있어야 함
         assertEquals(1, productRepository.count())
@@ -155,6 +168,7 @@ class JdbcBulkInsertProductRepositoryTest {
 
     private fun createProduct(name: String, code: String, price: Long, stock: Long = 100): Product {
         return Product(
+            company = testCompany,
             name = name,
             code = ProductCode(code),
             price = Money.of(price),

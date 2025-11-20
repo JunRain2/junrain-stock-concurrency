@@ -1,6 +1,6 @@
-package com.example.demo.common.aop
+package com.example.demo.global.aop
 
-import com.example.demo.common.lock.LockRepository
+import com.example.demo.global.lock.LockRepository
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.annotation.Around
 import org.aspectj.lang.annotation.Aspect

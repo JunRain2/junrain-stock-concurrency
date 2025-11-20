@@ -1,4 +1,4 @@
-package com.example.demo.common.aop
+package com.example.demo.global.aop
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)

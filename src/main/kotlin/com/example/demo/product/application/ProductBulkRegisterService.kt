@@ -1,10 +1,15 @@
 package com.example.demo.product.application
 
+
+import com.example.demo.member.domain.Member
+import com.example.demo.member.domain.MemberRepository
+import com.example.demo.member.exception.NotFoundMemberException
+import com.example.demo.product.application.dto.command.ProductBulkRegisterCommand
+import com.example.demo.product.domain.product.BulkInsertProductRepository
 import com.example.demo.product.domain.product.Product
-import com.example.demo.product.domain.product.ProductRepository
 import com.example.demo.product.domain.product.vo.Money
 import com.example.demo.product.domain.product.vo.ProductCode
-import com.example.demo.product.ui.dto.request.BulkRegisterProductRequest
+import com.example.demo.product.exception.ProductAccessDeniedException
 import com.example.demo.product.ui.dto.response.BulkRegisterProductResponse
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.dao.TransientDataAccessException
@@ -12,8 +17,9 @@ import org.springframework.stereotype.Service
 import java.lang.Thread.sleep
 
 @Service
-class BulkRegisterProductService(
-    private val productRepository: ProductRepository,
+class ProductBulkRegisterService(
+    private val productRepository: BulkInsertProductRepository,
+    private val memberRepository: MemberRepository,
     @param:Value("\${bulk-insert.chunk-size}") private val chunkSize: Int,
     @param:Value("\${bulk-insert.retry-milliseconds}") private val retryMilliseconds: List<Long>
 ) {
@@ -36,17 +42,24 @@ class BulkRegisterProductService(
      *
      *  데이터를 병렬 처리해도 문제가 크게 안생길 것 같음
      */
-    fun registerProducts(request: BulkRegisterProductRequest): BulkRegisterProductResponse {
-        val products = request.products
+    fun registerProducts(command: ProductBulkRegisterCommand): BulkRegisterProductResponse {
+        val owner = memberRepository.findById(command.ownerId)
+            .orElseThrow { NotFoundMemberException() }
+        if (!owner.isSeller()) {
+            throw ProductAccessDeniedException()
+        }
 
+        // 실패
         val failedProducts = mutableListOf<BulkRegisterProductResponse.FailedRegisterProduct>()
+        // 재시도
         var retryProducts = mutableListOf<Product>()
 
+        val products = command.products
         products.chunked(chunkSize).forEach {
-            // 엔티티 생성 과정에서 비즈니스 로직에서 1차 거름
-            val validProducts = validateProducts(it, failedProducts)
+            // 입력값 검증
+            val validProducts = validateProducts(it, failedProducts, owner)
 
-            // DB에 저장 실패한 값
+            // DB에서 발생한 일시적인 장애
             try {
                 failedProducts.addAll(productRepository.saveAllAndReturnFailed(validProducts))
             } catch (e: TransientDataAccessException) {
@@ -91,8 +104,9 @@ class BulkRegisterProductService(
 
 
     private fun validateProducts(
-        chunk: List<BulkRegisterProductRequest.RegisterProduct>,
-        failureProducts: MutableList<BulkRegisterProductResponse.FailedRegisterProduct>
+        chunk: List<ProductBulkRegisterCommand.RegisterProduct>,
+        failureProducts: MutableList<BulkRegisterProductResponse.FailedRegisterProduct>,
+        owner: Member
     ): List<Product> {
         // 전부 Product로 만듦으로써 유효성 검사를 진행
         val products = chunk.mapNotNull {
@@ -101,7 +115,8 @@ class BulkRegisterProductService(
                     name = it.name,
                     code = ProductCode(it.code),
                     price = Money.of(it.price),
-                    stock = it.stock
+                    stock = it.stock,
+                    ownerId = owner.id
                 )
             } catch (e: IllegalArgumentException) {
                 failureProducts.add(
@@ -115,7 +130,6 @@ class BulkRegisterProductService(
                 null
             }
         }
-
         return products
     }
 }

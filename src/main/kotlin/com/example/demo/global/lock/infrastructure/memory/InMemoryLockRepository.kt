@@ -1,6 +1,6 @@
-package com.example.demo.common.lock.infrastructure.memory
+package com.example.demo.global.lock.infrastructure.memory
 
-import com.example.demo.common.lock.LockRepository
+import com.example.demo.global.lock.LockRepository
 import org.springframework.context.annotation.Primary
 import org.springframework.stereotype.Repository
 import java.util.concurrent.ConcurrentHashMap
