@@ -1,9 +1,10 @@
 package com.example.demo.product.application
 
-import com.example.demo.company.entity.Company
-import com.example.demo.company.entity.CompanyRepository
+import com.example.demo.member.domain.Member
+import com.example.demo.member.domain.MemberRepository
+import com.example.demo.member.domain.MemberType
 import com.example.demo.product.application.dto.command.ProductBulkRegisterCommand
-import com.example.demo.product.domain.product.ProductRepository
+import com.example.demo.product.domain.ProductRepository
 import com.example.demo.product.ui.dto.request.BulkRegisterProductRequest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -23,21 +24,21 @@ class BulkInsertProductServiceIntegrationTest {
     private lateinit var productRepository: ProductRepository
 
     @Autowired
-    private lateinit var companyRepository: CompanyRepository
+    private lateinit var memberRepository: MemberRepository
 
-    private lateinit var testCompany: Company
+    private lateinit var testMember: Member
 
     @BeforeEach
     fun setUp() {
         productRepository.deleteAll()
-        companyRepository.deleteAll()
-        testCompany = companyRepository.save(Company(name = "Test Company"))
+        memberRepository.deleteAll()
+        testMember = memberRepository.save(Member(memberType = MemberType.SELLER, name = "Test Seller"))
     }
 
     @AfterEach
     fun tearDown() {
         productRepository.deleteAll()
-        companyRepository.deleteAll()
+        memberRepository.deleteAll()
     }
 
     @Test
@@ -45,7 +46,7 @@ class BulkInsertProductServiceIntegrationTest {
         // given
         val products = createValidProducts(15)
         val request = BulkRegisterProductRequest(products)
-        val command = ProductBulkRegisterCommand.of(testCompany.id, request)
+        val command = ProductBulkRegisterCommand.of(testMember.id, request)
 
         // when
         val result = bulkInsertProductService.registerProducts(command)
@@ -64,11 +65,11 @@ class BulkInsertProductServiceIntegrationTest {
     fun `should handle duplicate product codes with INSERT IGNORE`() {
         // given: 먼저 5개 상품 등록
         val firstBatch = createValidProducts(5)
-        bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(firstBatch)))
+        bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testMember.id, BulkRegisterProductRequest(firstBatch)))
 
         // when: 동일한 코드를 포함한 10개 상품 재등록 시도 (처음 5개는 중복)
         val secondBatch = createValidProducts(10)
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(secondBatch)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testMember.id, BulkRegisterProductRequest(secondBatch)))
 
         // then
         assertEquals(5, result.successCount) // 6~10번만 성공
@@ -105,7 +106,7 @@ class BulkInsertProductServiceIntegrationTest {
         )
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testMember.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(1, result.successCount)
@@ -125,7 +126,7 @@ class BulkInsertProductServiceIntegrationTest {
         val products = createValidProducts(25)
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testMember.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(25, result.successCount)
@@ -153,7 +154,7 @@ class BulkInsertProductServiceIntegrationTest {
                 code = "P002"
             )
         )
-        bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(existingProducts)))
+        bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testMember.id, BulkRegisterProductRequest(existingProducts)))
 
         // when: 검증 실패 + 중복 + 성공 포함
         val newProducts = listOf(
@@ -167,7 +168,7 @@ class BulkInsertProductServiceIntegrationTest {
             BulkRegisterProductRequest.RegisterProduct("신규상품3", 5000L, 50L, "P005")
         )
 
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(newProducts)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testMember.id, BulkRegisterProductRequest(newProducts)))
 
         // then
         assertEquals(3, result.successCount) // P003, P004, P005
@@ -186,7 +187,7 @@ class BulkInsertProductServiceIntegrationTest {
         val products = emptyList<BulkRegisterProductRequest.RegisterProduct>()
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testMember.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(0, result.successCount)
@@ -204,7 +205,7 @@ class BulkInsertProductServiceIntegrationTest {
         val products = createValidProducts(100)
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testMember.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(100, result.successCount)
@@ -228,7 +229,7 @@ class BulkInsertProductServiceIntegrationTest {
         )
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testMember.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(0, result.successCount)
@@ -253,12 +254,12 @@ class BulkInsertProductServiceIntegrationTest {
         )
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testMember.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(0, result.successCount)
         assertEquals(1, result.failureCount)
-        assertEquals("재고는 0개 이상이어야 합니다", result.failedProducts[0].message)
+        assertEquals("상품재고는 0개 이상이어야 합니다", result.failedProducts[0].message)
 
         // DB에 저장되지 않음
         val savedProducts = productRepository.findAll()
@@ -278,7 +279,7 @@ class BulkInsertProductServiceIntegrationTest {
         )
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testMember.id, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(0, result.successCount)

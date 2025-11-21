@@ -1,14 +1,13 @@
 package com.example.demo.product.application
 
 
-import com.example.demo.member.domain.Member
 import com.example.demo.member.domain.MemberRepository
 import com.example.demo.member.exception.NotFoundMemberException
 import com.example.demo.product.application.dto.command.ProductBulkRegisterCommand
-import com.example.demo.product.domain.product.BulkInsertProductRepository
-import com.example.demo.product.domain.product.Product
-import com.example.demo.product.domain.product.vo.Money
-import com.example.demo.product.domain.product.vo.ProductCode
+import com.example.demo.product.domain.BulkInsertProductRepository
+import com.example.demo.product.domain.Product
+import com.example.demo.product.domain.vo.Money
+import com.example.demo.product.domain.vo.ProductCode
 import com.example.demo.product.exception.ProductAccessDeniedException
 import com.example.demo.product.ui.dto.response.BulkRegisterProductResponse
 import org.springframework.beans.factory.annotation.Value
@@ -20,6 +19,8 @@ import java.lang.Thread.sleep
 class ProductBulkRegisterService(
     private val productRepository: BulkInsertProductRepository,
     private val memberRepository: MemberRepository,
+
+    @param:Value("\${bulk-insert.max-size}") private val maxSize: Int,
     @param:Value("\${bulk-insert.chunk-size}") private val chunkSize: Int,
     @param:Value("\${bulk-insert.retry-milliseconds}") private val retryMilliseconds: List<Long>
 ) {
@@ -43,93 +44,119 @@ class ProductBulkRegisterService(
      *  데이터를 병렬 처리해도 문제가 크게 안생길 것 같음
      */
     fun registerProducts(command: ProductBulkRegisterCommand): BulkRegisterProductResponse {
+        val products = command.products
+        require(products.size <= maxSize) { "상품의 수가 ${maxSize}를 초과했습니다." }
+
         val owner = memberRepository.findById(command.ownerId)
             .orElseThrow { NotFoundMemberException() }
         if (!owner.isSeller()) {
             throw ProductAccessDeniedException()
         }
 
-        // 실패
-        val failedProducts = mutableListOf<BulkRegisterProductResponse.FailedRegisterProduct>()
-        // 재시도
-        var retryProducts = mutableListOf<Product>()
+        val failed = mutableListOf<BulkRegisterProductResponse.FailedRegisterProduct>()
+        var retry = mutableListOf<Product>()
 
-        val products = command.products
-        products.chunked(chunkSize).forEach {
-            // 입력값 검증
-            val validProducts = validateProducts(it, failedProducts, owner)
+        products.chunked(chunkSize).forEach { chunk ->
+            // 입력값 검증, 실패한 값을 추출
+            val validProducts = chunk.mapNotNull { product ->
+                runCatching {
+                    Product(
+                        name = product.name,
+                        code = ProductCode(product.code),
+                        price = Money.of(product.price),
+                        stock = product.stock,
+                        ownerId = owner.id
+                    )
+                }.onFailure { e ->
+                    if (e is IllegalArgumentException) {
+                        failed.add(
+                            generateFailedRegisterProduct(
+                                product,
+                                e.message ?: "유효하지 않은 입력값입니다."
+                            )
+                        )
+                    }
+                }.getOrNull()
+            }
 
-            // DB에서 발생한 일시적인 장애
+            // 저장
             try {
-                failedProducts.addAll(productRepository.saveAllAndReturnFailed(validProducts))
-            } catch (e: TransientDataAccessException) {
-                retryProducts.addAll(validProducts)
+                failed += productRepository.saveAllAndReturnFailed(validProducts)
+                    .map {
+                        generateFailedRegisterProduct(
+                            it,
+                            "중복된 상품 코드입니다. (코드: ${it.code.code})"
+                        )
+                    }
+            } catch (e: TransientDataAccessException) { // DB에서 발생한 일시적인 장애
+                retry += validProducts
             }
         }
 
         // 재시도
         for (millis in retryMilliseconds) {
-            if (retryProducts.isEmpty()) {
+            if (retry.isEmpty()) {
                 break
             }
             sleep(millis)
 
-            val tmp = mutableListOf<Product>()
-            retryProducts.chunked(chunkSize).forEach {
-                try {
-                    failedProducts.addAll(productRepository.saveAllAndReturnFailed(it))
-                } catch (e: TransientDataAccessException) {
-                    tmp.addAll(it)
-                }
-            }
-            retryProducts = tmp
+
+            retry = retry.chunked(chunkSize).flatMap { chunk ->
+                runCatching {
+                    failed += productRepository.saveAllAndReturnFailed(chunk)
+                        .map {
+                            generateFailedRegisterProduct(
+                                it,
+                                "중복된 상품 코드입니다. (코드: ${it.code.code})"
+                            )
+                        }
+                    emptyList<Product>() // 성공 시 빈 리스트
+                }.recover { e ->
+                    if (e is TransientDataAccessException) {
+                        chunk
+                    } else {
+                        failed += chunk.map {
+                            generateFailedRegisterProduct(it, e.message ?: "예상치 못한 오류가 발생했습니다.")
+                        }
+                        emptyList()
+                    }
+                }.getOrThrow()
+            }.toMutableList()
         }
 
         // 재시도 실패한 데이터를 삽입
-        failedProducts.addAll(retryProducts.map {
-            BulkRegisterProductResponse.FailedRegisterProduct(
-                name = it.name,
-                price = it.price.amount.toLong(),
-                stock = it.stock,
-                message = "서버 장애로인해 데이터를 저장하지 못했습니다."
-            )
-        })
+        failed += retry.map {
+            generateFailedRegisterProduct(it, "서버 장애로인해 데이터를 저장하지 못했습니다.")
+        }
 
         return BulkRegisterProductResponse(
-            successCount = products.size - failedProducts.size,
-            failureCount = failedProducts.size,
-            failedProducts = failedProducts
+            successCount = products.size - failed.size,
+            failureCount = failed.size,
+            failedProducts = failed
         )
     }
 
+    private fun generateFailedRegisterProduct(
+        product: ProductBulkRegisterCommand.RegisterProduct,
+        message: String
+    ): BulkRegisterProductResponse.FailedRegisterProduct {
+        return BulkRegisterProductResponse.FailedRegisterProduct(
+            name = product.name,
+            price = product.price,
+            stock = product.stock,
+            message = message
+        )
+    }
 
-    private fun validateProducts(
-        chunk: List<ProductBulkRegisterCommand.RegisterProduct>,
-        failureProducts: MutableList<BulkRegisterProductResponse.FailedRegisterProduct>,
-        owner: Member
-    ): List<Product> {
-        // 전부 Product로 만듦으로써 유효성 검사를 진행
-        val products = chunk.mapNotNull {
-            try {
-                Product(
-                    name = it.name,
-                    code = ProductCode(it.code),
-                    price = Money.of(it.price),
-                    stock = it.stock,
-                    ownerId = owner.id
-                )
-            } catch (e: IllegalArgumentException) {
-                failureProducts.add(
-                    BulkRegisterProductResponse.FailedRegisterProduct(
-                        name = it.name,
-                        price = it.price,
-                        stock = it.stock,
-                        message = e.message ?: "유효하지 않은 입력 값입니다."
-                    )
-                )
-                null
-            }
-        }
-        return products
+    private fun generateFailedRegisterProduct(
+        product: Product,
+        message: String
+    ): BulkRegisterProductResponse.FailedRegisterProduct {
+        return BulkRegisterProductResponse.FailedRegisterProduct(
+            name = product.name,
+            price = product.price.amount.toLong(),
+            stock = product.stock,
+            message = message
+        )
     }
 }

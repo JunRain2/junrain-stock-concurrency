@@ -1,8 +1,8 @@
-package com.example.demo.product.domain.product
+package com.example.demo.product.domain
 
 import com.example.demo.global.contract.BaseEntity
-import com.example.demo.product.domain.product.vo.Money
-import com.example.demo.product.domain.product.vo.ProductCode
+import com.example.demo.product.domain.vo.Money
+import com.example.demo.product.domain.vo.ProductCode
 import jakarta.persistence.*
 
 @Entity

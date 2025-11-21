@@ -1,11 +1,12 @@
 package com.example.demo.product.infrastructure.jdbc
 
-import com.example.demo.company.entity.Company
-import com.example.demo.company.entity.CompanyRepository
-import com.example.demo.product.domain.product.Product
-import com.example.demo.product.domain.product.ProductRepository
-import com.example.demo.product.domain.product.vo.Money
-import com.example.demo.product.domain.product.vo.ProductCode
+import com.example.demo.member.domain.Member
+import com.example.demo.member.domain.MemberRepository
+import com.example.demo.member.domain.MemberType
+import com.example.demo.product.domain.Product
+import com.example.demo.product.domain.ProductRepository
+import com.example.demo.product.domain.vo.Money
+import com.example.demo.product.domain.vo.ProductCode
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -23,19 +24,19 @@ class JdbcBulkInsertProductRepositoryTest {
     private lateinit var productRepository: ProductRepository
 
     @Autowired
-    private lateinit var companyRepository: CompanyRepository
+    private lateinit var memberRepository: MemberRepository
 
-    private lateinit var testCompany: Company
+    private lateinit var testMember: Member
 
     @BeforeEach
     fun setup() {
-        testCompany = companyRepository.save(Company(name = "Test Company"))
+        testMember = memberRepository.save(Member(memberType = MemberType.SELLER, name = "Test Seller"))
     }
 
     @AfterEach
     fun cleanup() {
         productRepository.deleteAll()
-        companyRepository.deleteAll()
+        memberRepository.deleteAll()
     }
 
     @Test
@@ -78,9 +79,9 @@ class JdbcBulkInsertProductRepositoryTest {
 
         val failed = failedProducts.first()
         assertEquals("Duplicate Product", failed.name)
-        assertEquals(20000L, failed.price)
+        assertEquals(Money.of(20000L), failed.price)
         assertEquals(100L, failed.stock)
-        assertEquals("중복된 상품 코드입니다. (코드: DUPLICATE)", failed.message)
+        assertEquals(ProductCode("DUPLICATE"), failed.code)
 
         // 성공한 2개는 DB에 저장되었는지 확인
         val savedCount = productRepository.count()
@@ -159,8 +160,8 @@ class JdbcBulkInsertProductRepositoryTest {
 
         val failed = failedProducts.first()
         assertEquals("Duplicate", failed.name)
-        assertEquals(20000L, failed.price)
-        assertEquals("중복된 상품 코드입니다. (코드: ${duplicateProduct.code.code})", failed.message)
+        assertEquals(Money.of(20000L), failed.price)
+        assertEquals(ProductCode("SINGLE002"), failed.code)
 
         // DB에는 기존 1개만 있어야 함
         assertEquals(1, productRepository.count())
@@ -168,7 +169,7 @@ class JdbcBulkInsertProductRepositoryTest {
 
     private fun createProduct(name: String, code: String, price: Long, stock: Long = 100): Product {
         return Product(
-            company = testCompany,
+            ownerId = testMember.id,
             name = name,
             code = ProductCode(code),
             price = Money.of(price),

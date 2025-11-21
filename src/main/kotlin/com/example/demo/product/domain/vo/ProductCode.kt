@@ -1,4 +1,4 @@
-package com.example.demo.product.domain.product.vo
+package com.example.demo.product.domain.vo
 
 import jakarta.persistence.Column
 import jakarta.persistence.Embeddable

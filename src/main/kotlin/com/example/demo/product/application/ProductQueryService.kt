@@ -2,7 +2,7 @@ package com.example.demo.product.application
 
 import com.example.demo.member.domain.MemberRepository
 import com.example.demo.member.exception.NotFoundMemberException
-import com.example.demo.product.domain.product.ProductRepository
+import com.example.demo.product.domain.ProductRepository
 import com.example.demo.product.exception.NotFoundProductException
 import com.example.demo.product.ui.dto.response.ProductDetailResponse
 import org.springframework.stereotype.Service

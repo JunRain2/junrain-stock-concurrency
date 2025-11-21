@@ -3,10 +3,10 @@ package com.example.demo.product.application
 import com.example.demo.member.domain.MemberRepository
 import com.example.demo.member.exception.NotFoundMemberException
 import com.example.demo.product.application.dto.command.ProductRegisterCommand
-import com.example.demo.product.domain.product.Product
-import com.example.demo.product.domain.product.ProductRepository
-import com.example.demo.product.domain.product.vo.Money
-import com.example.demo.product.domain.product.vo.ProductCode
+import com.example.demo.product.domain.Product
+import com.example.demo.product.domain.ProductRepository
+import com.example.demo.product.domain.vo.Money
+import com.example.demo.product.domain.vo.ProductCode
 import com.example.demo.product.exception.DuplicateProductCodeException
 import com.example.demo.product.exception.ProductAccessDeniedException
 import com.example.demo.product.ui.dto.response.RegisterProductResponse

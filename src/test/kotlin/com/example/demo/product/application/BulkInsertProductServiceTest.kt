@@ -1,18 +1,19 @@
 package com.example.demo.product.application
 
-import com.example.demo.company.entity.Company
-import com.example.demo.company.entity.CompanyRepository
+import com.example.demo.member.domain.Member
+import com.example.demo.member.domain.MemberRepository
 import com.example.demo.product.application.dto.command.ProductBulkRegisterCommand
-import com.example.demo.product.domain.product.BulkInsertProductRepository
+import com.example.demo.product.domain.BulkInsertProductRepository
 import com.example.demo.product.ui.dto.request.BulkRegisterProductRequest
 import com.example.demo.product.ui.dto.response.BulkRegisterProductResponse
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
+import org.mockito.junit.jupiter.MockitoSettings
 import org.mockito.kotlin.*
+import org.mockito.quality.Strictness
 import org.springframework.dao.TransientDataAccessException
 import java.util.*
 import kotlin.test.assertEquals
@@ -22,27 +23,31 @@ import kotlin.test.assertTrue
 class TestTransientDataAccessException(msg: String) : TransientDataAccessException(msg)
 
 @ExtendWith(MockitoExtension::class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class BulkInsertProductServiceTest {
 
     @Mock
     private lateinit var bulkInsertProductRepository: BulkInsertProductRepository
 
     @Mock
-    private lateinit var companyRepository: CompanyRepository
+    private lateinit var memberRepository: MemberRepository
 
     private lateinit var bulkInsertProductService: ProductBulkRegisterService
-
-    private val testCompany = Company(id = 1L, name = "Test Company")
 
     @BeforeEach
     fun setUp() {
         // Mock 초기화는 @ExtendWith(MockitoExtension::class)에 의해 자동으로 수행됨
-        whenever(companyRepository.findById(1L)).thenReturn(Optional.of(testCompany))
+        val testMember = mock<Member> {
+            on { id } doReturn 1L
+            on { isSeller() } doReturn true
+        }
+        whenever(memberRepository.findById(1L)).thenReturn(Optional.of(testMember))
 
-        // ProductBulkRegisterService 수동 생성 (chunkSize, retryMilliseconds 필요)
+        // ProductBulkRegisterService 수동 생성 (maxSize, chunkSize, retryMilliseconds 필요)
         bulkInsertProductService = ProductBulkRegisterService(
             productRepository = bulkInsertProductRepository,
-            companyRepository = companyRepository,
+            memberRepository = memberRepository,
+            maxSize = 10000,
             chunkSize = 10,
             retryMilliseconds = listOf(100L, 200L)
         )
@@ -57,7 +62,7 @@ class BulkInsertProductServiceTest {
 
         // when
         val request = BulkRegisterProductRequest(products)
-        val command = ProductBulkRegisterCommand.of(testCompany.id, request)
+        val command = ProductBulkRegisterCommand.of(1L, request)
         val result = bulkInsertProductService.registerProducts(command)
 
         // then
@@ -73,7 +78,7 @@ class BulkInsertProductServiceTest {
         val products = emptyList<BulkRegisterProductRequest.RegisterProduct>()
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(1L, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(0, result.successCount)
@@ -97,7 +102,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList())
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(1L, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(0, result.successCount)
@@ -121,7 +126,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList())
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(1L, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(0, result.successCount)
@@ -144,7 +149,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList())
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(1L, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(0, result.successCount)
@@ -163,11 +168,9 @@ class BulkInsertProductServiceTest {
                 code = "P001"
             )
         )
-        whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
-            .thenReturn(emptyList())
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(1L, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(0, result.successCount)
@@ -190,37 +193,35 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList())
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(1L, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(0, result.successCount)
         assertEquals(1, result.failureCount)
-        assertEquals("재고는 0개 이상이어야 합니다", result.failedProducts[0].message)
+        assertEquals("상품재고는 0개 이상이어야 합니다", result.failedProducts[0].message)
     }
 
     @Test
     fun `Repository에서 반환한 실패 상품들이 응답에 포함되어야 한다`() {
         // given
         val products = createValidProducts(3)
-        val dbFailedProducts = listOf(
-            BulkRegisterProductResponse.FailedRegisterProduct(
-                name = "상품1",
-                price = 1000L,
-                stock = 10L,
-                message = "상품 코드가 중복되었습니다"
-            )
-        )
+        val dbFailedProduct = mock<com.example.demo.product.domain.Product> {
+            on { name } doReturn "상품1"
+            on { price } doReturn com.example.demo.product.domain.vo.Money.of(1000L)
+            on { stock } doReturn 10L
+            on { code } doReturn com.example.demo.product.domain.vo.ProductCode("P001")
+        }
         whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
-            .thenReturn(dbFailedProducts)
+            .thenReturn(listOf(dbFailedProduct))
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(1L, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(2, result.successCount)
         assertEquals(1, result.failureCount)
         assertEquals(1, result.failedProducts.size)
-        assertEquals("상품 코드가 중복되었습니다", result.failedProducts[0].message)
+        assertEquals("중복된 상품 코드입니다. (코드: P001)", result.failedProducts[0].message)
     }
 
     @Test
@@ -247,26 +248,24 @@ class BulkInsertProductServiceTest {
             )
         )
 
-        val dbFailedProducts = listOf(
-            BulkRegisterProductResponse.FailedRegisterProduct(
-                name = "상품2",
-                price = 2000L,
-                stock = 20L,
-                message = "상품 코드가 중복되었습니다"
-            )
-        )
+        val dbFailedProduct = mock<com.example.demo.product.domain.Product> {
+            on { name } doReturn "상품2"
+            on { price } doReturn com.example.demo.product.domain.vo.Money.of(2000L)
+            on { stock } doReturn 20L
+            on { code } doReturn com.example.demo.product.domain.vo.ProductCode("P002")
+        }
         whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
-            .thenReturn(dbFailedProducts)
+            .thenReturn(listOf(dbFailedProduct))
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(1L, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(1, result.successCount) // 상품3만 성공
         assertEquals(2, result.failureCount) // 상품1(검증실패), 상품2(DB실패)
         assertEquals(2, result.failedProducts.size)
         assertTrue(result.failedProducts.any { failedProduct -> failedProduct.message == "상품명은 필수입니다" })
-        assertTrue(result.failedProducts.any { failedProduct -> failedProduct.message == "상품 코드가 중복되었습니다" })
+        assertTrue(result.failedProducts.any { failedProduct -> failedProduct.message == "중복된 상품 코드입니다. (코드: P002)" })
     }
 
     @Test
@@ -277,7 +276,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList())
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(1L, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(25, result.successCount)
@@ -293,7 +292,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList())
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(1L, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(10, result.successCount)
@@ -316,7 +315,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList())
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(1L, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(19, result.successCount)
@@ -333,7 +332,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList()) // 첫 재시도에서 성공
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(1L, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(5, result.successCount)
@@ -351,7 +350,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList()) // 두 번째 재시도에서 성공
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(1L, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(5, result.successCount)
@@ -367,7 +366,7 @@ class BulkInsertProductServiceTest {
             .thenThrow(TestTransientDataAccessException("일시적 DB 오류"))
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(1L, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(0, result.successCount)
@@ -389,7 +388,7 @@ class BulkInsertProductServiceTest {
             .thenReturn(emptyList()) // 재시도 시 성공
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(1L, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(20, result.successCount)
@@ -410,7 +409,7 @@ class BulkInsertProductServiceTest {
             .thenThrow(TestTransientDataAccessException("일시적 DB 오류")) // 두 번째 재시도: 세 번째 청크 여전히 실패
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(1L, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(20, result.successCount) // 첫 번째 + 두 번째 청크 성공
@@ -431,56 +430,52 @@ class BulkInsertProductServiceTest {
             *createValidProducts(25).toTypedArray()
         )
 
-        val dbFailedProducts = listOf(
-            BulkRegisterProductResponse.FailedRegisterProduct(
-                name = "상품1",
-                price = 1000L,
-                stock = 10L,
-                message = "중복된 코드입니다"
-            )
-        )
+        val dbFailedProduct = mock<com.example.demo.product.domain.Product> {
+            on { name } doReturn "상품1"
+            on { price } doReturn com.example.demo.product.domain.vo.Money.of(1000L)
+            on { stock } doReturn 10L
+            on { code } doReturn com.example.demo.product.domain.vo.ProductCode("P001")
+        }
 
         whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
             .thenReturn(emptyList()) // 첫 번째 청크 성공
-            .thenReturn(dbFailedProducts) // 두 번째 청크 일부 실패
+            .thenReturn(listOf(dbFailedProduct)) // 두 번째 청크 일부 실패
             .thenThrow(TestTransientDataAccessException("일시적 DB 오류")) // 세 번째 청크 TransientException
             .thenReturn(emptyList()) // 재시도 성공
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(1L, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(24, result.successCount) // 총 26개 중 검증실패 1개, DB실패 1개
         assertEquals(2, result.failureCount)
         assertEquals(2, result.failedProducts.size)
         assertTrue(result.failedProducts.any { it.message == "상품명은 필수입니다" })
-        assertTrue(result.failedProducts.any { it.message == "중복된 코드입니다" })
+        assertTrue(result.failedProducts.any { it.message == "중복된 상품 코드입니다. (코드: P001)" })
     }
 
     @Test
     fun `재시도 중 DB 실패가 발생하면 실패 목록에 추가되어야 한다`() {
         // given
         val products = createValidProducts(10)
-        val dbFailedProducts = listOf(
-            BulkRegisterProductResponse.FailedRegisterProduct(
-                name = "상품1",
-                price = 1000L,
-                stock = 10L,
-                message = "중복된 코드입니다"
-            )
-        )
+        val dbFailedProduct = mock<com.example.demo.product.domain.Product> {
+            on { name } doReturn "상품1"
+            on { price } doReturn com.example.demo.product.domain.vo.Money.of(1000L)
+            on { stock } doReturn 10L
+            on { code } doReturn com.example.demo.product.domain.vo.ProductCode("P001")
+        }
 
         whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
             .thenThrow(TestTransientDataAccessException("일시적 DB 오류"))
-            .thenReturn(dbFailedProducts) // 재시도 시 일부 DB 실패
+            .thenReturn(listOf(dbFailedProduct)) // 재시도 시 일부 DB 실패
 
         // when
-        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(testCompany.id, BulkRegisterProductRequest(products)))
+        val result = bulkInsertProductService.registerProducts(ProductBulkRegisterCommand.of(1L, BulkRegisterProductRequest(products)))
 
         // then
         assertEquals(9, result.successCount)
         assertEquals(1, result.failureCount)
-        assertEquals("중복된 코드입니다", result.failedProducts[0].message)
+        assertEquals("중복된 상품 코드입니다. (코드: P001)", result.failedProducts[0].message)
     }
 
     // 헬퍼 메서드

@@ -1,12 +1,13 @@
 package com.example.demo.product.application
 
-import com.example.demo.company.entity.Company
-import com.example.demo.company.entity.CompanyRepository
+import com.example.demo.member.domain.Member
+import com.example.demo.member.domain.MemberRepository
+import com.example.demo.member.domain.MemberType
 import com.example.demo.product.application.dto.command.PurchaseProductCommand
-import com.example.demo.product.domain.product.Product
-import com.example.demo.product.domain.product.ProductRepository
-import com.example.demo.product.domain.product.vo.Money
-import com.example.demo.product.domain.product.vo.ProductCode
+import com.example.demo.product.domain.Product
+import com.example.demo.product.domain.ProductRepository
+import com.example.demo.product.domain.vo.Money
+import com.example.demo.product.domain.vo.ProductCode
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -27,21 +28,21 @@ class ProductServiceConcurrencyTest {
     private lateinit var productRepository: ProductRepository
 
     @Autowired
-    private lateinit var companyRepository: CompanyRepository
+    private lateinit var memberRepository: MemberRepository
 
-    private lateinit var testCompany: Company
+    private lateinit var testMember: Member
 
     @BeforeEach
     fun setUp() {
         productRepository.deleteAll()
-        companyRepository.deleteAll()
-        testCompany = companyRepository.save(Company(name = "Test Company"))
+        memberRepository.deleteAll()
+        testMember = memberRepository.save(Member(memberType = MemberType.SELLER, name = "Test Seller"))
     }
 
     @AfterEach
     fun tearDown() {
         productRepository.deleteAll()
-        companyRepository.deleteAll()
+        memberRepository.deleteAll()
     }
 
     @Test
@@ -50,7 +51,7 @@ class ProductServiceConcurrencyTest {
         val initialStock = 100
         val product = productRepository.save(
             Product(
-                company = testCompany,
+                ownerId = testMember.id,
                 name = "테스트 상품",
                 code = ProductCode("TEST001"),
                 price = Money.of(10000),
@@ -89,7 +90,7 @@ class ProductServiceConcurrencyTest {
         val initialStock = 10
         val product = productRepository.save(
             Product(
-                company = testCompany,
+                ownerId = testMember.id,
                 name = "테스트 상품",
                 code = ProductCode("TEST002"),
                 price = Money.of(10000),
@@ -137,7 +138,7 @@ class ProductServiceConcurrencyTest {
         val initialStock = 1000
         val product = productRepository.save(
             Product(
-                company = testCompany,
+                ownerId = testMember.id,
                 name = "테스트 상품",
                 code = ProductCode("TEST003"),
                 price = Money.of(10000),
