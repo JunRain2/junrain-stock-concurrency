@@ -11,7 +11,7 @@
     }
     request.variables.set("successData", JSON.stringify({ products }));
 %}
-POST http://localhost:8080/api/v1/products/bulk
+POST http://localhost:8080/api/v1/products/bulk?ownerId=1
 Content-Type: application/json
 
 {{successData}}
@@ -48,7 +48,128 @@ Content-Type: application/json
     }
     request.variables.set("failureData", JSON.stringify({ products }));
 %}
-POST http://localhost:8080/api/v1/products/bulk
+POST http://localhost:8080/api/v1/products/bulk?ownerId=1
 Content-Type: application/json
 
 {{failureData}}
+
+### 3. Get Product Page - Latest Sorter (Default)
+GET http://localhost:8080/api/v1/products?productName=Product&size=10&sorter=LATEST
+Content-Type: application/json
+
+### 4. Get Product Page - Latest Sorter with ownerId filter
+GET http://localhost:8080/api/v1/products?productName=Product&ownerId=1&size=10&sorter=LATEST
+Content-Type: application/json
+
+### 5. Get Product Page - Sale Price Ascending
+GET http://localhost:8080/api/v1/products?productName=Product&size=10&sorter=SALE_PRICE_ASC
+Content-Type: application/json
+
+### 6. Get Product Page - Sale Price Descending
+GET http://localhost:8080/api/v1/products?productName=Product&size=10&sorter=SALE_PRICE_DESC
+Content-Type: application/json
+
+### 7. Get Product Page - Latest Sorter with Cursor (pagination)
+# First, get the initial page and note the nextCursor values
+# Then use lastProductId and createdAt from the response for next page
+GET http://localhost:8080/api/v1/products?productName=Product&size=10&sorter=LATEST&lastProductId=2991&createdAt=2025-11-25T12:24:03.749182
+Content-Type: application/json
+
+### 8. Get Product Page - Price Ascending with Cursor
+# Use lastProductId and price from previous response for pagination
+GET http://localhost:8080/api/v1/products?productName=Product&size=10&sorter=SALE_PRICE_ASC&lastProductId=50&price=2000
+Content-Type: application/json
+
+### 9. Get Product Page - Price Descending with Cursor
+# Use lastProductId and price from previous response for pagination
+GET http://localhost:8080/api/v1/products?productName=Product&size=10&sorter=SALE_PRICE_DESC&lastProductId=50&price=5000
+Content-Type: application/json
+
+### 10. Get Product Page - Search with partial name
+GET http://localhost:8080/api/v1/products?productName=Prod&size=5&sorter=LATEST
+Content-Type: application/json
+
+### 11. Get Product Page - Invalid Request (empty productName)
+# Should return validation error
+GET http://localhost:8080/api/v1/products?productName=&size=10&sorter=LATEST
+Content-Type: application/json
+
+### 12. Get Product Page - Custom size
+GET http://localhost:8080/api/v1/products?productName=Product&size=20&sorter=LATEST
+Content-Type: application/json
+
+### 13. Register Single Product - Success
+POST http://localhost:8080/api/v1/products?ownerId=1
+Content-Type: application/json
+
+{
+  "name": "New Product",
+  "price": 15000,
+  "stock": 100,
+  "code": "SINGLE-PROD-001"
+}
+
+### 14. Register Single Product - Different Owner
+POST http://localhost:8080/api/v1/products?ownerId=2
+Content-Type: application/json
+
+{
+  "name": "Another Product",
+  "price": 25000,
+  "stock": 50,
+  "code": "SINGLE-PROD-002"
+}
+
+### 15. Register Single Product - Validation Failure (empty name)
+POST http://localhost:8080/api/v1/products?ownerId=1
+Content-Type: application/json
+
+{
+  "name": "",
+  "price": 10000,
+  "stock": 10,
+  "code": "INVALID-001"
+}
+
+### 16. Register Single Product - Validation Failure (negative price)
+POST http://localhost:8080/api/v1/products?ownerId=1
+Content-Type: application/json
+
+{
+  "name": "Invalid Product",
+  "price": -5000,
+  "stock": 10,
+  "code": "INVALID-002"
+}
+
+### 17. Purchase Product - Success
+POST http://localhost:8080/api/v1/products/1/purchase
+Content-Type: application/json
+
+{
+  "quantity": 5
+}
+
+### 18. Purchase Product - Large Quantity
+POST http://localhost:8080/api/v1/products/1/purchase
+Content-Type: application/json
+
+{
+  "quantity": 50
+}
+
+### 19. Purchase Product - Insufficient Stock (should fail)
+POST http://localhost:8080/api/v1/products/1/purchase
+Content-Type: application/json
+
+{
+  "quantity": 99999
+}
+
+### 20. Purchase Product - Invalid Quantity (negative)
+POST http://localhost:8080/api/v1/products/1/purchase
+Content-Type: application/json
+
+{
+  "quantity": -10
+}

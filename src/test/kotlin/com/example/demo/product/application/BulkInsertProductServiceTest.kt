@@ -2,10 +2,13 @@ package com.example.demo.product.application
 
 import com.example.demo.member.domain.Member
 import com.example.demo.member.domain.MemberRepository
-import com.example.demo.product.application.dto.command.ProductBulkRegisterCommand
-import com.example.demo.product.domain.BulkInsertProductRepository
-import com.example.demo.product.ui.dto.request.BulkRegisterProductRequest
-import com.example.demo.product.ui.dto.response.BulkRegisterProductResponse
+import com.example.demo.product.command.application.ProductBulkRegisterService
+import com.example.demo.product.command.application.dto.request.ProductBulkRegisterCommand
+import com.example.demo.product.command.domain.BulkInsertProductRepository
+import com.example.demo.product.command.domain.Product
+import com.example.demo.product.command.domain.vo.Money
+import com.example.demo.product.command.domain.vo.ProductCode
+import com.example.demo.product.command.ui.dto.request.BulkRegisterProductRequest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -205,11 +208,11 @@ class BulkInsertProductServiceTest {
     fun `Repository에서 반환한 실패 상품들이 응답에 포함되어야 한다`() {
         // given
         val products = createValidProducts(3)
-        val dbFailedProduct = mock<com.example.demo.product.domain.Product> {
+        val dbFailedProduct = mock<Product> {
             on { name } doReturn "상품1"
-            on { price } doReturn com.example.demo.product.domain.vo.Money.of(1000L)
+            on { price } doReturn Money.of(1000L)
             on { stock } doReturn 10L
-            on { code } doReturn com.example.demo.product.domain.vo.ProductCode("P001")
+            on { code } doReturn ProductCode("P001")
         }
         whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
             .thenReturn(listOf(dbFailedProduct))
@@ -248,11 +251,11 @@ class BulkInsertProductServiceTest {
             )
         )
 
-        val dbFailedProduct = mock<com.example.demo.product.domain.Product> {
+        val dbFailedProduct = mock<Product> {
             on { name } doReturn "상품2"
-            on { price } doReturn com.example.demo.product.domain.vo.Money.of(2000L)
+            on { price } doReturn Money.of(2000L)
             on { stock } doReturn 20L
-            on { code } doReturn com.example.demo.product.domain.vo.ProductCode("P002")
+            on { code } doReturn ProductCode("P002")
         }
         whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
             .thenReturn(listOf(dbFailedProduct))
@@ -430,11 +433,11 @@ class BulkInsertProductServiceTest {
             *createValidProducts(25).toTypedArray()
         )
 
-        val dbFailedProduct = mock<com.example.demo.product.domain.Product> {
+        val dbFailedProduct = mock<Product> {
             on { name } doReturn "상품1"
-            on { price } doReturn com.example.demo.product.domain.vo.Money.of(1000L)
+            on { price } doReturn Money.of(1000L)
             on { stock } doReturn 10L
-            on { code } doReturn com.example.demo.product.domain.vo.ProductCode("P001")
+            on { code } doReturn ProductCode("P001")
         }
 
         whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
@@ -458,11 +461,11 @@ class BulkInsertProductServiceTest {
     fun `재시도 중 DB 실패가 발생하면 실패 목록에 추가되어야 한다`() {
         // given
         val products = createValidProducts(10)
-        val dbFailedProduct = mock<com.example.demo.product.domain.Product> {
+        val dbFailedProduct = mock<Product> {
             on { name } doReturn "상품1"
-            on { price } doReturn com.example.demo.product.domain.vo.Money.of(1000L)
+            on { price } doReturn Money.of(1000L)
             on { stock } doReturn 10L
-            on { code } doReturn com.example.demo.product.domain.vo.ProductCode("P001")
+            on { code } doReturn ProductCode("P001")
         }
 
         whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
