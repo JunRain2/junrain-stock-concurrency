@@ -2,14 +2,14 @@ package com.example.demo.product.command.application
 
 
 import com.example.demo.member.domain.MemberRepository
-import com.example.demo.member.exception.NotFoundMemberException
-import com.example.demo.product.command.application.dto.request.ProductBulkRegisterCommand
-import com.example.demo.product.command.application.dto.result.BulkRegisterProductResult
+import com.example.demo.global.contract.exception.NotFoundMemberException
+import com.example.demo.product.command.application.dto.ProductBulkRegisterCommand
+import com.example.demo.product.command.application.dto.BulkRegisterProductResult
 import com.example.demo.product.command.domain.BulkInsertProductRepository
 import com.example.demo.product.command.domain.Product
-import com.example.demo.product.command.domain.vo.Money
+import com.example.demo.global.contract.vo.Money
 import com.example.demo.product.command.domain.vo.ProductCode
-import com.example.demo.product.exception.ProductAccessDeniedException
+import com.example.demo.global.contract.exception.ProductAccessDeniedException
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.dao.TransientDataAccessException
 import org.springframework.stereotype.Service

@@ -1,7 +1,7 @@
 package com.example.demo.product.command.domain
 
 import com.example.demo.global.contract.BaseEntity
-import com.example.demo.product.command.domain.vo.Money
+import com.example.demo.global.contract.vo.Money
 import com.example.demo.product.command.domain.vo.ProductCode
 import jakarta.persistence.*
 
@@ -52,5 +52,9 @@ class Product(
         require(this.stock - quantity >= 0) { "재고가 없습니다." }
 
         this.stock -= quantity
+    }
+
+    fun hasEnoughStock(quantity: Long): Boolean {
+        return this.stock >= quantity
     }
 }

@@ -4,9 +4,9 @@ import com.example.demo.member.domain.Member
 import com.example.demo.member.domain.MemberRepository
 import com.example.demo.member.domain.MemberType
 import com.example.demo.product.command.application.ProductBulkRegisterService
-import com.example.demo.product.command.application.dto.request.ProductBulkRegisterCommand
+import com.example.demo.product.command.application.dto.ProductBulkRegisterCommand
 import com.example.demo.product.command.domain.ProductRepository
-import com.example.demo.product.command.ui.dto.request.BulkRegisterProductRequest
+import com.example.demo.product.command.ui.dto.BulkRegisterProductRequest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

@@ -3,12 +3,12 @@ package com.example.demo.product.application
 import com.example.demo.member.domain.Member
 import com.example.demo.member.domain.MemberRepository
 import com.example.demo.product.command.application.ProductBulkRegisterService
-import com.example.demo.product.command.application.dto.request.ProductBulkRegisterCommand
+import com.example.demo.product.command.application.dto.ProductBulkRegisterCommand
 import com.example.demo.product.command.domain.BulkInsertProductRepository
 import com.example.demo.product.command.domain.Product
-import com.example.demo.product.command.domain.vo.Money
+import com.example.demo.global.contract.vo.Money
 import com.example.demo.product.command.domain.vo.ProductCode
-import com.example.demo.product.command.ui.dto.request.BulkRegisterProductRequest
+import com.example.demo.product.command.ui.dto.BulkRegisterProductRequest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith

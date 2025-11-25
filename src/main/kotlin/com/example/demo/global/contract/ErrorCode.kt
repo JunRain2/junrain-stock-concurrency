@@ -29,8 +29,11 @@ enum class ErrorCode(
     PRODUCT_NOT_FOUND("PRO001", "상품을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
     PRODUCT_CODE_DUPLICATED("PRO002", "이미 존재하는 상품 코드입니다", HttpStatus.CONFLICT),
     PRODUCT_OUT_OF_STOCK("PRO003", "재고가 부족합니다", HttpStatus.BAD_REQUEST),
-    PRODUCT_ACCESS_DENIED("PR004", "상품에 대한 권한이 없습니다.", HttpStatus.FORBIDDEN),
+    PRODUCT_ACCESS_DENIED("PRO04", "상품에 대한 권한이 없습니다.", HttpStatus.FORBIDDEN),
 
     // Member
-    MEMBER_NOT_FOUND("MEM001", "사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND)
+    MEMBER_NOT_FOUND("MEM001", "사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+
+    // cart
+    CART_ITEM_NOT_FOUND("CAR001", "장바구니에서 해당 제품을 찾을 수 없습니다.", HttpStatus.NOT_FOUND)
 }

@@ -1,10 +1,10 @@
 package com.example.demo.product.command.application
 
+import com.example.demo.global.contract.exception.NotFoundProductException
 import com.example.demo.global.lock.LockRepository
-import com.example.demo.product.command.application.dto.request.PurchaseProductCommand
-import com.example.demo.product.command.application.dto.result.PurchaseProductResult
+import com.example.demo.product.command.application.dto.PurchaseProductCommand
+import com.example.demo.product.command.application.dto.PurchaseProductResult
 import com.example.demo.product.command.domain.ProductRepository
-import com.example.demo.product.exception.NotFoundProductException
 import org.springframework.stereotype.Service
 
 @Service

@@ -1,7 +1,7 @@
 package com.example.demo.product.query.application
 
 import com.example.demo.global.contract.CursorPageResponse
-import com.example.demo.product.exception.NotFoundProductException
+import com.example.demo.global.contract.exception.NotFoundProductException
 import com.example.demo.product.query.application.dto.ProductDetailResult
 import com.example.demo.product.query.application.dto.ProductPageQuery
 import com.example.demo.product.query.application.dto.ProductPageResult

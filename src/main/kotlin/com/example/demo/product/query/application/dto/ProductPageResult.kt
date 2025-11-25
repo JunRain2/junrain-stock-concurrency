@@ -1,6 +1,6 @@
 package com.example.demo.product.query.application.dto
 
-import com.example.demo.product.command.domain.vo.Money
+import com.example.demo.global.contract.vo.Money
 import com.querydsl.core.annotations.QueryProjection
 import java.time.LocalDateTime
 
