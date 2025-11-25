@@ -3,10 +3,10 @@ package com.example.demo.product.query.ui
 import com.example.demo.global.contract.ApiResponse
 import com.example.demo.global.contract.CursorPageResponse
 import com.example.demo.product.query.application.ProductQueryService
-import com.example.demo.product.query.application.dto.ProductDetailResult
 import com.example.demo.product.query.application.dto.ProductPageQuery
-import com.example.demo.product.query.application.dto.ProductPageResult
 import com.example.demo.product.query.ui.dto.request.ProductPageRequest
+import com.example.demo.product.query.ui.dto.response.ProductDetailResponse
+import com.example.demo.product.query.ui.dto.response.ProductPageResponse
 import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.*
 
@@ -18,8 +18,9 @@ class ProductQueryController(
     @GetMapping("/{productId}")
     fun getProduct(
         @PathVariable productId: Long
-    ): ApiResponse<ProductDetailResult> {
-        val response = productQueryService.getProductDetail(productId)
+    ): ApiResponse<ProductDetailResponse> {
+        val result = productQueryService.getProductDetail(productId)
+        val response = ProductDetailResponse.from(result)
 
         return ApiResponse.ok(response)
     }
@@ -27,14 +28,21 @@ class ProductQueryController(
     @GetMapping
     fun getProductPage(
         @Valid @ModelAttribute request: ProductPageRequest
-    ): ApiResponse<CursorPageResponse<ProductPageResult>> {
+    ): ApiResponse<CursorPageResponse<ProductPageResponse>> {
         val query = ProductPageQuery(
             ownerId = request.ownerId,
             productName = request.productName,
             productSorter = request.sorter.generateProductSorterRequest(request),
             size = request.size
         )
-        val response = productQueryService.getProductPage(query)
+        val pageResult = productQueryService.getProductPage(query)
+
+        val response = CursorPageResponse(
+            data = pageResult.data.map { ProductPageResponse.from(it) },
+            size = pageResult.size,
+            hasNext = pageResult.hasNext,
+            nextCursor = pageResult.nextCursor
+        )
 
         return ApiResponse.ok(response)
     }

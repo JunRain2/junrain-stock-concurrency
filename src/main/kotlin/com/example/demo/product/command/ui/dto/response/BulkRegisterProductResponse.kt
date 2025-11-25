@@ -1,5 +1,7 @@
 package com.example.demo.product.command.ui.dto.response
 
+import com.example.demo.product.command.application.dto.result.BulkRegisterProductResult
+
 data class BulkRegisterProductResponse(
     val successCount: Int,
     val failureCount: Int,
@@ -11,4 +13,21 @@ data class BulkRegisterProductResponse(
         val stock: Long,
         val message: String
     )
+
+    companion object {
+        fun from(result: BulkRegisterProductResult): BulkRegisterProductResponse {
+            return BulkRegisterProductResponse(
+                successCount = result.successCount,
+                failureCount = result.failureCount,
+                failedProducts = result.failedProducts.map {
+                    FailedRegisterProduct(
+                        name = it.name,
+                        price = it.price,
+                        stock = it.stock,
+                        message = it.message
+                    )
+                }
+            )
+        }
+    }
 }

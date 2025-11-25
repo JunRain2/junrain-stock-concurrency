@@ -29,7 +29,8 @@ class ProductCommandController(
         @RequestParam ownerId: Long
     ): ApiResponse<RegisterProductResponse> {
         val command = ProductRegisterCommand.of(ownerId, request)
-        val response = productRegisterService.registerProduct(command)
+        val result = productRegisterService.registerProduct(command)
+        val response = RegisterProductResponse.from(result)
 
         return ApiResponse.ok(response)
     }
@@ -40,7 +41,8 @@ class ProductCommandController(
         @RequestParam ownerId: Long
     ): ApiResponse<BulkRegisterProductResponse> {
         val command = ProductBulkRegisterCommand.of(ownerId, request)
-        val response = productBulkRegisterService.registerProducts(command)
+        val result = productBulkRegisterService.registerProducts(command)
+        val response = BulkRegisterProductResponse.from(result)
 
         return ApiResponse.ok(response)
     }
@@ -49,9 +51,10 @@ class ProductCommandController(
     fun purchaseProduct(
         @PathVariable productId: Long,
         @Valid @RequestBody request: PurchaseProductRequest
-    ): ApiResponse<PurchaseProductResponse?> {
+    ): ApiResponse<PurchaseProductResponse> {
         val command = PurchaseProductCommand.of(productId, request)
-        val response = productPurchaseService.decreaseStock(command)
+        val result = productPurchaseService.decreaseStock(command)
+        val response = PurchaseProductResponse.from(result)
 
         return ApiResponse.ok(response)
     }

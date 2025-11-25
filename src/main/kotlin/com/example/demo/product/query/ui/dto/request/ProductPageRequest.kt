@@ -14,7 +14,7 @@ data class ProductPageRequest(
     val price: BigDecimal?,
     val ownerId: Long?,
     @field:NotBlank(message = "상품명은 필수입니다")
-    @field:Size(max = 30, message = "상품명은 30자 미만이어야 합니다")
+    @field:Size(max = 30, message = "상품명은 20자 미만이어야 합니다")
     val productName: String,
     val size: Int = 10,
     val sorter: ProductPageSorter = ProductPageSorter.LATEST,

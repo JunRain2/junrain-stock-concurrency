@@ -4,12 +4,12 @@ package com.example.demo.product.command.application
 import com.example.demo.member.domain.MemberRepository
 import com.example.demo.member.exception.NotFoundMemberException
 import com.example.demo.product.command.application.dto.request.ProductBulkRegisterCommand
+import com.example.demo.product.command.application.dto.result.BulkRegisterProductResult
 import com.example.demo.product.command.domain.BulkInsertProductRepository
 import com.example.demo.product.command.domain.Product
 import com.example.demo.product.command.domain.vo.Money
 import com.example.demo.product.command.domain.vo.ProductCode
 import com.example.demo.product.exception.ProductAccessDeniedException
-import com.example.demo.product.command.ui.dto.response.BulkRegisterProductResponse
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.dao.TransientDataAccessException
 import org.springframework.stereotype.Service
@@ -43,7 +43,7 @@ class ProductBulkRegisterService(
      *
      *  데이터를 병렬 처리해도 문제가 크게 안생길 것 같음
      */
-    fun registerProducts(command: ProductBulkRegisterCommand): BulkRegisterProductResponse {
+    fun registerProducts(command: ProductBulkRegisterCommand): BulkRegisterProductResult {
         val products = command.products
         require(products.size <= maxSize) { "상품의 수가 ${maxSize}를 초과했습니다." }
 
@@ -53,7 +53,7 @@ class ProductBulkRegisterService(
             throw ProductAccessDeniedException()
         }
 
-        val failed = mutableListOf<BulkRegisterProductResponse.FailedRegisterProduct>()
+        val failed = mutableListOf<BulkRegisterProductResult.FailedRegisterProduct>()
         var retry = mutableListOf<Product>()
 
         products.chunked(chunkSize).forEach { chunk ->
@@ -129,7 +129,7 @@ class ProductBulkRegisterService(
             generateFailedRegisterProduct(it, "서버 장애로인해 데이터를 저장하지 못했습니다.")
         }
 
-        return BulkRegisterProductResponse(
+        return BulkRegisterProductResult(
             successCount = products.size - failed.size,
             failureCount = failed.size,
             failedProducts = failed
@@ -139,8 +139,8 @@ class ProductBulkRegisterService(
     private fun generateFailedRegisterProduct(
         product: ProductBulkRegisterCommand.RegisterProduct,
         message: String
-    ): BulkRegisterProductResponse.FailedRegisterProduct {
-        return BulkRegisterProductResponse.FailedRegisterProduct(
+    ): BulkRegisterProductResult.FailedRegisterProduct {
+        return BulkRegisterProductResult.FailedRegisterProduct(
             name = product.name,
             price = product.price,
             stock = product.stock,
@@ -151,8 +151,8 @@ class ProductBulkRegisterService(
     private fun generateFailedRegisterProduct(
         product: Product,
         message: String
-    ): BulkRegisterProductResponse.FailedRegisterProduct {
-        return BulkRegisterProductResponse.FailedRegisterProduct(
+    ): BulkRegisterProductResult.FailedRegisterProduct {
+        return BulkRegisterProductResult.FailedRegisterProduct(
             name = product.name,
             price = product.price.amount.toLong(),
             stock = product.stock,

@@ -11,6 +11,7 @@ data class ProductPageQuery(
 ) {
     init {
         require(productName.isNotBlank()) { "상품명은 반드시 입력해야 합니다." }
+        require(productName.length < 20) { "상품명은 20자 미만이어야 합니다." }
     }
 }
 
