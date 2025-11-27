@@ -1,10 +1,10 @@
 package com.example.demo.product.application
 
-import com.example.demo.member.domain.Member
-import com.example.demo.member.domain.MemberRepository
+import com.example.demo.member.command.domain.Member
+import com.example.demo.member.command.domain.MemberRepository
 import com.example.demo.product.command.application.ProductBulkRegisterService
 import com.example.demo.product.command.application.dto.ProductBulkRegisterCommand
-import com.example.demo.product.command.domain.BulkInsertProductRepository
+import com.example.demo.product.command.domain.ProductBulkInsertRepository
 import com.example.demo.product.command.domain.Product
 import com.example.demo.global.contract.vo.Money
 import com.example.demo.product.command.domain.vo.ProductCode
@@ -30,7 +30,7 @@ class TestTransientDataAccessException(msg: String) : TransientDataAccessExcepti
 class BulkInsertProductServiceTest {
 
     @Mock
-    private lateinit var bulkInsertProductRepository: BulkInsertProductRepository
+    private lateinit var productBulkInsertRepository: ProductBulkInsertRepository
 
     @Mock
     private lateinit var memberRepository: MemberRepository
@@ -48,7 +48,7 @@ class BulkInsertProductServiceTest {
 
         // ProductBulkRegisterService 수동 생성 (maxSize, chunkSize, retryMilliseconds 필요)
         bulkInsertProductService = ProductBulkRegisterService(
-            productRepository = bulkInsertProductRepository,
+            productRepository = productBulkInsertRepository,
             memberRepository = memberRepository,
             maxSize = 10000,
             chunkSize = 10,
@@ -60,7 +60,7 @@ class BulkInsertProductServiceTest {
     fun `모든 상품이 성공적으로 등록되어야 한다`() {
         // given
         val products = createValidProducts(5)
-        whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
+        whenever(productBulkInsertRepository.bulkInsert(any()))
             .thenReturn(emptyList())
 
         // when
@@ -72,7 +72,7 @@ class BulkInsertProductServiceTest {
         assertEquals(5, result.successCount)
         assertEquals(0, result.failureCount)
         assertTrue(result.failedProducts.isEmpty())
-        verify(bulkInsertProductRepository, times(1)).saveAllAndReturnFailed(any())
+        verify(productBulkInsertRepository, times(1)).bulkInsert(any())
     }
 
     @Test
@@ -87,7 +87,7 @@ class BulkInsertProductServiceTest {
         assertEquals(0, result.successCount)
         assertEquals(0, result.failureCount)
         assertTrue(result.failedProducts.isEmpty())
-        verify(bulkInsertProductRepository, never()).saveAllAndReturnFailed(any())
+        verify(productBulkInsertRepository, never()).bulkInsert(any())
     }
 
     @Test
@@ -101,7 +101,7 @@ class BulkInsertProductServiceTest {
                 code = "P001"
             )
         )
-        whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
+        whenever(productBulkInsertRepository.bulkInsert(any()))
             .thenReturn(emptyList())
 
         // when
@@ -125,7 +125,7 @@ class BulkInsertProductServiceTest {
                 code = "P001"
             )
         )
-        whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
+        whenever(productBulkInsertRepository.bulkInsert(any()))
             .thenReturn(emptyList())
 
         // when
@@ -148,7 +148,7 @@ class BulkInsertProductServiceTest {
                 code = "P001"
             )
         )
-        whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
+        whenever(productBulkInsertRepository.bulkInsert(any()))
             .thenReturn(emptyList())
 
         // when
@@ -192,7 +192,7 @@ class BulkInsertProductServiceTest {
                 code = "P001"
             )
         )
-        whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
+        whenever(productBulkInsertRepository.bulkInsert(any()))
             .thenReturn(emptyList())
 
         // when
@@ -214,7 +214,7 @@ class BulkInsertProductServiceTest {
             on { stock } doReturn 10L
             on { code } doReturn ProductCode("P001")
         }
-        whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
+        whenever(productBulkInsertRepository.bulkInsert(any()))
             .thenReturn(listOf(dbFailedProduct))
 
         // when
@@ -257,7 +257,7 @@ class BulkInsertProductServiceTest {
             on { stock } doReturn 20L
             on { code } doReturn ProductCode("P002")
         }
-        whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
+        whenever(productBulkInsertRepository.bulkInsert(any()))
             .thenReturn(listOf(dbFailedProduct))
 
         // when
@@ -275,7 +275,7 @@ class BulkInsertProductServiceTest {
     fun `10개를 초과하는 상품은 여러 청크로 나뉘어 처리되어야 한다`() {
         // given
         val products = createValidProducts(25) // 3개의 청크로 나뉨 (10 + 10 + 5)
-        whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
+        whenever(productBulkInsertRepository.bulkInsert(any()))
             .thenReturn(emptyList())
 
         // when
@@ -284,14 +284,14 @@ class BulkInsertProductServiceTest {
         // then
         assertEquals(25, result.successCount)
         assertEquals(0, result.failureCount)
-        verify(bulkInsertProductRepository, times(3)).saveAllAndReturnFailed(any())
+        verify(productBulkInsertRepository, times(3)).bulkInsert(any())
     }
 
     @Test
     fun `정확히 10개인 경우 1개의 청크로 처리되어야 한다`() {
         // given
         val products = createValidProducts(10)
-        whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
+        whenever(productBulkInsertRepository.bulkInsert(any()))
             .thenReturn(emptyList())
 
         // when
@@ -300,7 +300,7 @@ class BulkInsertProductServiceTest {
         // then
         assertEquals(10, result.successCount)
         assertEquals(0, result.failureCount)
-        verify(bulkInsertProductRepository, times(1)).saveAllAndReturnFailed(any())
+        verify(productBulkInsertRepository, times(1)).bulkInsert(any())
     }
 
     @Test
@@ -314,7 +314,7 @@ class BulkInsertProductServiceTest {
             *createValidProducts(10).toTypedArray()
         )
 
-        whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
+        whenever(productBulkInsertRepository.bulkInsert(any()))
             .thenReturn(emptyList())
 
         // when
@@ -323,14 +323,14 @@ class BulkInsertProductServiceTest {
         // then
         assertEquals(19, result.successCount)
         assertEquals(1, result.failureCount)
-        verify(bulkInsertProductRepository, times(2)).saveAllAndReturnFailed(any())
+        verify(productBulkInsertRepository, times(2)).bulkInsert(any())
     }
 
     @Test
     fun `TransientDataAccessException 발생 시 재시도를 수행하고 성공해야 한다`() {
         // given
         val products = createValidProducts(5)
-        whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
+        whenever(productBulkInsertRepository.bulkInsert(any()))
             .thenThrow(TestTransientDataAccessException("일시적 DB 오류"))
             .thenReturn(emptyList()) // 첫 재시도에서 성공
 
@@ -340,14 +340,14 @@ class BulkInsertProductServiceTest {
         // then
         assertEquals(5, result.successCount)
         assertEquals(0, result.failureCount)
-        verify(bulkInsertProductRepository, times(2)).saveAllAndReturnFailed(any())
+        verify(productBulkInsertRepository, times(2)).bulkInsert(any())
     }
 
     @Test
     fun `TransientDataAccessException 발생 시 2번 재시도 후 성공해야 한다`() {
         // given
         val products = createValidProducts(5)
-        whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
+        whenever(productBulkInsertRepository.bulkInsert(any()))
             .thenThrow(TestTransientDataAccessException("일시적 DB 오류"))
             .thenThrow(TestTransientDataAccessException("일시적 DB 오류"))
             .thenReturn(emptyList()) // 두 번째 재시도에서 성공
@@ -358,14 +358,14 @@ class BulkInsertProductServiceTest {
         // then
         assertEquals(5, result.successCount)
         assertEquals(0, result.failureCount)
-        verify(bulkInsertProductRepository, times(3)).saveAllAndReturnFailed(any()) // 최초 + 재시도 2회
+        verify(productBulkInsertRepository, times(3)).bulkInsert(any()) // 최초 + 재시도 2회
     }
 
     @Test
     fun `모든 재시도 실패 후 최종 실패 처리되어야 한다`() {
         // given
         val products = createValidProducts(5)
-        whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
+        whenever(productBulkInsertRepository.bulkInsert(any()))
             .thenThrow(TestTransientDataAccessException("일시적 DB 오류"))
 
         // when
@@ -378,14 +378,14 @@ class BulkInsertProductServiceTest {
         result.failedProducts.forEach { failedProduct ->
             assertEquals("서버 장애로인해 데이터를 저장하지 못했습니다.", failedProduct.message)
         }
-        verify(bulkInsertProductRepository, times(3)).saveAllAndReturnFailed(any()) // 최초 + 재시도 2회
+        verify(productBulkInsertRepository, times(3)).bulkInsert(any()) // 최초 + 재시도 2회
     }
 
     @Test
     fun `일부 청크만 재시도해야 한다`() {
         // given
         val products = createValidProducts(20) // 2개의 청크
-        whenever(bulkInsertProductRepository.saveAllAndReturnFailed(argThat { this.size == 10 }))
+        whenever(productBulkInsertRepository.bulkInsert(argThat { this.size == 10 }))
             .thenReturn(emptyList()) // 첫 번째 청크는 성공
             .thenThrow(TestTransientDataAccessException("일시적 DB 오류")) // 두 번째 청크는 실패
             .thenReturn(emptyList()) // 재시도 시 성공
@@ -396,14 +396,14 @@ class BulkInsertProductServiceTest {
         // then
         assertEquals(20, result.successCount)
         assertEquals(0, result.failureCount)
-        verify(bulkInsertProductRepository, times(3)).saveAllAndReturnFailed(any()) // 첫번째 청크 + 두번째 청크 + 재시도
+        verify(productBulkInsertRepository, times(3)).bulkInsert(any()) // 첫번째 청크 + 두번째 청크 + 재시도
     }
 
     @Test
     fun `재시도 중 일부는 성공하고 일부는 계속 실패할 수 있다`() {
         // given
         val products = createValidProducts(30) // 3개의 청크
-        whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
+        whenever(productBulkInsertRepository.bulkInsert(any()))
             .thenReturn(emptyList()) // 첫 번째 청크 성공
             .thenThrow(TestTransientDataAccessException("일시적 DB 오류")) // 두 번째 청크 실패
             .thenThrow(TestTransientDataAccessException("일시적 DB 오류")) // 세 번째 청크 실패
@@ -440,7 +440,7 @@ class BulkInsertProductServiceTest {
             on { code } doReturn ProductCode("P001")
         }
 
-        whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
+        whenever(productBulkInsertRepository.bulkInsert(any()))
             .thenReturn(emptyList()) // 첫 번째 청크 성공
             .thenReturn(listOf(dbFailedProduct)) // 두 번째 청크 일부 실패
             .thenThrow(TestTransientDataAccessException("일시적 DB 오류")) // 세 번째 청크 TransientException
@@ -468,7 +468,7 @@ class BulkInsertProductServiceTest {
             on { code } doReturn ProductCode("P001")
         }
 
-        whenever(bulkInsertProductRepository.saveAllAndReturnFailed(any()))
+        whenever(productBulkInsertRepository.bulkInsert(any()))
             .thenThrow(TestTransientDataAccessException("일시적 DB 오류"))
             .thenReturn(listOf(dbFailedProduct)) // 재시도 시 일부 DB 실패
 

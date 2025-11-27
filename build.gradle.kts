@@ -29,6 +29,9 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
 
+    // logger
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.3")
+
     // queryDsl
     implementation("com.querydsl:querydsl-core:5.0.0")
     implementation("com.querydsl:querydsl-jpa:5.0.0:jakarta")

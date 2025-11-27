@@ -1,6 +1,6 @@
 package com.example.demo.product.command.application
 
-import com.example.demo.global.contract.exception.NotFoundProductException
+import com.example.demo.product.exception.ProductNotFoundException
 import com.example.demo.global.lock.LockRepository
 import com.example.demo.product.command.application.dto.PurchaseProductCommand
 import com.example.demo.product.command.application.dto.PurchaseProductResult
@@ -16,7 +16,7 @@ class ProductPurchaseService(
     fun decreaseStock(command: PurchaseProductCommand): PurchaseProductResult {
         lockRepository.executeWithLock("product:${command.productId}") {
             val product = productRepository.findById(command.productId)
-                .orElseThrow { throw NotFoundProductException() }
+                .orElseThrow { throw ProductNotFoundException() }
 
             product.decrease(command.amount)
 

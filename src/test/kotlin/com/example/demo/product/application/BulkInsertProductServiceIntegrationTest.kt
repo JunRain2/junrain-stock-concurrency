@@ -1,8 +1,8 @@
 package com.example.demo.product.application
 
-import com.example.demo.member.domain.Member
-import com.example.demo.member.domain.MemberRepository
-import com.example.demo.member.domain.MemberType
+import com.example.demo.member.command.domain.Member
+import com.example.demo.member.command.domain.MemberRepository
+import com.example.demo.member.command.domain.MemberType
 import com.example.demo.product.command.application.ProductBulkRegisterService
 import com.example.demo.product.command.application.dto.ProductBulkRegisterCommand
 import com.example.demo.product.command.domain.ProductRepository

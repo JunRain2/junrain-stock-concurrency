@@ -1,4 +1,4 @@
-package com.example.demo.member.domain
+package com.example.demo.member.command.domain
 
 import com.example.demo.global.contract.BaseEntity
 import jakarta.persistence.*

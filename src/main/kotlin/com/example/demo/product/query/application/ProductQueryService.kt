@@ -1,21 +1,18 @@
 package com.example.demo.product.query.application
 
 import com.example.demo.global.contract.CursorPageResponse
-import com.example.demo.global.contract.exception.NotFoundProductException
+import com.example.demo.product.exception.ProductNotFoundException
 import com.example.demo.product.query.application.dto.ProductDetailResult
 import com.example.demo.product.query.application.dto.ProductPageQuery
 import com.example.demo.product.query.application.dto.ProductPageResult
-import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
 @Service
 class ProductQueryService(
     private val productQueryRepository: ProductQueryRepository,
 ) {
-    private val logger = LoggerFactory.getLogger(ProductQueryService::class.java)
-
     fun getProductDetail(productId: Long): ProductDetailResult {
-        return productQueryRepository.findById(productId) ?: throw NotFoundProductException()
+        return productQueryRepository.findById(productId) ?: throw ProductNotFoundException()
     }
 
     /**

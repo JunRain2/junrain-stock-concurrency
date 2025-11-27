@@ -6,9 +6,7 @@ data class BulkRegisterProductResult(
     val failedProducts: List<FailedRegisterProduct>
 ) {
     data class FailedRegisterProduct(
-        val name: String,
-        val price: Long,
-        val stock: Long,
-        val message: String
+        val code: String,
+        val cause: String?
     )
 }

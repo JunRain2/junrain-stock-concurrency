@@ -4,7 +4,7 @@ import com.example.demo.cart.command.application.dto.CartItemQuantityUpdateComma
 import com.example.demo.cart.command.application.dto.CartItemQuantityUpdateResult
 import com.example.demo.cart.command.domain.CartItemRepository
 import com.example.demo.cart.command.domain.StockAvailabilityService
-import com.example.demo.global.contract.exception.NotFoundCartItemException
+import com.example.demo.cart.exception.CartItemNotFoundException
 import org.springframework.stereotype.Service
 
 @Service
@@ -14,7 +14,7 @@ class CartItemQuantityUpdateService(
 ) {
     fun updateQuantity(command: CartItemQuantityUpdateCommand): CartItemQuantityUpdateResult {
         val cartItem = cartItemRepository.findById(command.cartItemId)
-            .orElseThrow { NotFoundCartItemException() }
+            .orElseThrow { CartItemNotFoundException() }
         cartItem.updateQuantity(command.quantity)
 
         stockAvailabilityService.validateProductStock(cartItem)

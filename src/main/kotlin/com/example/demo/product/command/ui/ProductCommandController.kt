@@ -1,25 +1,18 @@
 package com.example.demo.product.command.ui
 
 import com.example.demo.global.contract.ApiResponse
-import com.example.demo.product.command.application.ProductBulkRegisterService
 import com.example.demo.product.command.application.ProductPurchaseService
 import com.example.demo.product.command.application.ProductRegisterService
 import com.example.demo.product.command.application.dto.ProductBulkRegisterCommand
 import com.example.demo.product.command.application.dto.ProductRegisterCommand
 import com.example.demo.product.command.application.dto.PurchaseProductCommand
-import com.example.demo.product.command.ui.dto.BulkRegisterProductRequest
-import com.example.demo.product.command.ui.dto.PurchaseProductRequest
-import com.example.demo.product.command.ui.dto.RegisterProductRequest
-import com.example.demo.product.command.ui.dto.BulkRegisterProductResponse
-import com.example.demo.product.command.ui.dto.PurchaseProductResponse
-import com.example.demo.product.command.ui.dto.ProductRegisterResponse
+import com.example.demo.product.command.ui.dto.*
 import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/v1/products")
 class ProductCommandController(
-    private val productBulkRegisterService: ProductBulkRegisterService,
     private val productRegisterService: ProductRegisterService,
     private val productPurchaseService: ProductPurchaseService
 ) {
@@ -41,7 +34,7 @@ class ProductCommandController(
         @RequestParam ownerId: Long
     ): ApiResponse<BulkRegisterProductResponse> {
         val command = ProductBulkRegisterCommand.of(ownerId, request)
-        val result = productBulkRegisterService.registerProducts(command)
+        val result = productRegisterService.registerProducts(command)
         val response = BulkRegisterProductResponse.from(result)
 
         return ApiResponse.ok(response)

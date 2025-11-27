@@ -1,6 +1,6 @@
 package com.example.demo.product.command.application
 
-import com.example.demo.global.contract.exception.NotFoundProductException
+import com.example.demo.product.exception.ProductNotFoundException
 import com.example.demo.product.command.domain.ProductRepository
 import org.springframework.stereotype.Service
 
@@ -10,7 +10,7 @@ class ProductStockAvailabilityService(
 ) {
     fun hasEnoughStock(productId: Long, requiredQuantity: Long): Boolean {
         val product =
-            productRepository.findById(productId).orElseThrow { NotFoundProductException() }
+            productRepository.findById(productId).orElseThrow { ProductNotFoundException() }
 
         return product.hasEnoughStock(quantity = requiredQuantity)
     }

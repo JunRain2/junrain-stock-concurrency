@@ -1,4 +1,4 @@
-package com.example.demo.member.domain
+package com.example.demo.member.command.domain
 
 
 enum class MemberType() {

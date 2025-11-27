@@ -2,7 +2,7 @@ package com.example.demo.cart.command.infrastructure
 
 import com.example.demo.cart.command.domain.CartItem
 import com.example.demo.cart.command.domain.StockAvailabilityService
-import com.example.demo.global.contract.exception.ProductOutOfStockException
+import com.example.demo.product.exception.ProductOutOfStockException
 import com.example.demo.product.command.application.ProductStockAvailabilityService
 import org.springframework.stereotype.Service
 

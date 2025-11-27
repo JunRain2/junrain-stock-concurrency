@@ -1,13 +1,13 @@
 package com.example.demo.product.infrastructure.jdbc
 
-import com.example.demo.member.domain.Member
-import com.example.demo.member.domain.MemberRepository
-import com.example.demo.member.domain.MemberType
+import com.example.demo.member.command.domain.Member
+import com.example.demo.member.command.domain.MemberRepository
+import com.example.demo.member.command.domain.MemberType
 import com.example.demo.product.command.domain.Product
 import com.example.demo.product.command.domain.ProductRepository
 import com.example.demo.global.contract.vo.Money
 import com.example.demo.product.command.domain.vo.ProductCode
-import com.example.demo.product.command.infrastructure.JdbcBulkInsertProductRepository
+import com.example.demo.product.command.infrastructure.JdbcProductBulkInsertRepositoryImpl
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -19,7 +19,7 @@ import kotlin.test.assertEquals
 class JdbcBulkInsertProductRepositoryTest {
 
     @Autowired
-    private lateinit var repository: JdbcBulkInsertProductRepository
+    private lateinit var repository: JdbcProductBulkInsertRepositoryImpl
 
     @Autowired
     private lateinit var productRepository: ProductRepository
@@ -50,10 +50,11 @@ class JdbcBulkInsertProductRepositoryTest {
         )
 
         // when
-        val failedProducts = repository.saveAllAndReturnFailed(products)
+        val result = repository.bulkInsert(products)
 
         // then
-        assertEquals(0, failedProducts.size, "모든 제품이 성공적으로 저장되어야 합니다")
+        assertEquals(3, result.succeeded.size, "모든 제품이 성공적으로 저장되어야 합니다")
+        assertEquals(0, result.failed.size, "실패한 제품이 없어야 합니다")
 
         // 데이터베이스에 저장되었는지 확인
         val count = productRepository.count()
@@ -73,12 +74,13 @@ class JdbcBulkInsertProductRepositoryTest {
         )
 
         // when
-        val failedProducts = repository.saveAllAndReturnFailed(products)
+        val result = repository.bulkInsert(products)
 
         // then
-        assertEquals(1, failedProducts.size, "중복된 제품 1개만 실패해야 합니다")
+        assertEquals(2, result.succeeded.size, "2개의 제품이 성공해야 합니다")
+        assertEquals(1, result.failed.size, "중복된 제품 1개만 실패해야 합니다")
 
-        val failed = failedProducts.first()
+        val failed = result.failed.first().item
         assertEquals("Duplicate Product", failed.name)
         assertEquals(Money.of(20000L), failed.price)
         assertEquals(100L, failed.stock)
@@ -106,13 +108,14 @@ class JdbcBulkInsertProductRepositoryTest {
         )
 
         // when
-        val failedProducts = repository.saveAllAndReturnFailed(duplicateProducts)
+        val result = repository.bulkInsert(duplicateProducts)
 
         // then
-        assertEquals(3, failedProducts.size, "모든 제품이 실패해야 합니다")
-        assertEquals("Duplicate 1", failedProducts[0].name)
-        assertEquals("Duplicate 2", failedProducts[1].name)
-        assertEquals("Duplicate 3", failedProducts[2].name)
+        assertEquals(0, result.succeeded.size, "성공한 제품이 없어야 합니다")
+        assertEquals(3, result.failed.size, "모든 제품이 실패해야 합니다")
+        assertEquals("Duplicate 1", result.failed[0].item.name)
+        assertEquals("Duplicate 2", result.failed[1].item.name)
+        assertEquals("Duplicate 3", result.failed[2].item.name)
 
         // DB에는 기존 3개만 있어야 함
         assertEquals(3, productRepository.count())
@@ -124,10 +127,11 @@ class JdbcBulkInsertProductRepositoryTest {
         val products = emptyList<Product>()
 
         // when
-        val failedProducts = repository.saveAllAndReturnFailed(products)
+        val result = repository.bulkInsert(products)
 
         // then
-        assertEquals(0, failedProducts.size)
+        assertEquals(0, result.succeeded.size)
+        assertEquals(0, result.failed.size)
     }
 
     @Test
@@ -136,10 +140,11 @@ class JdbcBulkInsertProductRepositoryTest {
         val product = createProduct("Single Product", "SINGLE001", 50000)
 
         // when
-        val failedProducts = repository.saveAllAndReturnFailed(listOf(product))
+        val result = repository.bulkInsert(listOf(product))
 
         // then
-        assertEquals(0, failedProducts.size)
+        assertEquals(1, result.succeeded.size)
+        assertEquals(0, result.failed.size)
 
         val count = productRepository.count()
         assertEquals(1, count)
@@ -154,12 +159,13 @@ class JdbcBulkInsertProductRepositoryTest {
         val duplicateProduct = createProduct("Duplicate", "SINGLE002", 20000)
 
         // when
-        val failedProducts = repository.saveAllAndReturnFailed(listOf(duplicateProduct))
+        val result = repository.bulkInsert(listOf(duplicateProduct))
 
         // then
-        assertEquals(1, failedProducts.size, "중복 제품이 실패해야 합니다")
+        assertEquals(0, result.succeeded.size, "성공한 제품이 없어야 합니다")
+        assertEquals(1, result.failed.size, "중복 제품이 실패해야 합니다")
 
-        val failed = failedProducts.first()
+        val failed = result.failed.first().item
         assertEquals("Duplicate", failed.name)
         assertEquals(Money.of(20000L), failed.price)
         assertEquals(ProductCode("SINGLE002"), failed.code)

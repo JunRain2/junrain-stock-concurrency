@@ -1,7 +1,7 @@
-package com.example.demo.member.application
+package com.example.demo.member.command.application
 
-import com.example.demo.global.contract.exception.NotFoundMemberException
-import com.example.demo.member.domain.MemberRepository
+import com.example.demo.member.exception.MemberNotFoundException
+import com.example.demo.member.command.domain.MemberRepository
 import org.springframework.stereotype.Service
 
 @Service
@@ -10,7 +10,7 @@ class MemberRoleVerificationService(
 ) {
     fun isMemberSeller(memberId: Long): Boolean {
         val member = memberRepository.findById(memberId).orElseThrow {
-            NotFoundMemberException()
+            MemberNotFoundException()
         }
 
         return member.isSeller()

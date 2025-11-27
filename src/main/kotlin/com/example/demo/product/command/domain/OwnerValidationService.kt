@@ -1,5 +1,5 @@
 package com.example.demo.product.command.domain
 
-interface SellerVerificationService {
+interface OwnerValidationService {
     fun validateMemberIsSeller(memberId: Long)
 }
