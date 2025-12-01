@@ -1,6 +1,6 @@
 package com.example.demo.product.query.infrastructure.querydsl
 
-import com.example.demo.member.domain.QMember
+import com.example.demo.member.command.domain.QMember
 import com.example.demo.product.command.domain.QProduct
 import com.example.demo.product.query.application.ProductQueryRepository
 import com.example.demo.product.query.application.dto.*
