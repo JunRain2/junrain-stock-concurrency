@@ -19,6 +19,7 @@ const normalItemRequests = new Counter('normal_item_requests');
 
 // 테스트 설정
 export const options = {
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
   scenarios: {
     // 일반 사용자 트래픽 (80%)
     normal_traffic: {
@@ -239,25 +240,130 @@ function htmlReport(data) {
 <head>
     <title>Step 3: 혼합 시나리오 테스트 결과</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1 { color: #333; }
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #333; border-bottom: 3px solid #FF9800; padding-bottom: 10px; }
+        h2 { color: #555; margin-top: 30px; }
+        .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 20px 0; }
+        .metric-card { background: #f9f9f9; padding: 20px; border-radius: 5px; border-left: 4px solid #FF9800; }
+        .metric-label { font-size: 14px; color: #666; margin-bottom: 5px; }
+        .metric-value { font-size: 24px; font-weight: bold; color: #333; }
+        .metric-unit { font-size: 16px; color: #888; }
+        .good { color: #4CAF50; }
+        .warning { color: #FF9800; }
+        .bad { color: #F44336; }
+        .info-box { background: #FFF3E0; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #FF9800; }
         table { border-collapse: collapse; width: 100%; margin: 20px 0; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #4CAF50; color: white; }
-        .metric { font-size: 18px; margin: 10px 0; }
-        .good { color: green; }
-        .warning { color: orange; }
-        .bad { color: red; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #FF9800; color: white; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
     </style>
 </head>
 <body>
-    <h1>Step 3: 혼합 시나리오 테스트 결과</h1>
-    <div class="metric">총 요청 수: ${httpReqs.count || 0}</div>
-    <div class="metric">평균 응답 시간: ${(httpReqDuration.avg || 0).toFixed(2)}ms</div>
-    <div class="metric">P95 응답 시간: ${(httpReqDuration['p(95)'] || 0).toFixed(2)}ms</div>
-    <div class="metric">P99 응답 시간: ${(httpReqDuration['p(99)'] || 0).toFixed(2)}ms</div>
-    <div class="metric">에러율: ${((errors.rate || 0) * 100).toFixed(2)}%</div>
-    <div class="metric">TPS: ${(httpReqs.rate || 0).toFixed(2)}</div>
+    <div class="container">
+        <h1>Step 3: 혼합 시나리오 테스트 결과</h1>
+        <p>실제 운영 환경을 시뮬레이션한 복합 시나리오 테스트</p>
+
+        <div class="info-box">
+            <strong>테스트 특징:</strong> Hot Item(20%)과 일반 트래픽(80%) 혼합, 장바구니 기능(30% 확률), 트래픽 스파이크 포함
+        </div>
+
+        <h2>전체 성능 메트릭</h2>
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-label">총 요청 수</div>
+                <div class="metric-value">${httpReqs.count || 0}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">초당 요청 수 (TPS)</div>
+                <div class="metric-value">${(httpReqs.rate || 0).toFixed(2)}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">평균 응답 시간</div>
+                <div class="metric-value">${(httpReqDuration.avg || 0).toFixed(2)} <span class="metric-unit">ms</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">P95 응답 시간</div>
+                <div class="metric-value ${(httpReqDuration['p(95)'] || 0) > 4000 ? 'bad' : (httpReqDuration['p(95)'] || 0) > 2000 ? 'warning' : 'good'}">${(httpReqDuration['p(95)'] || 0).toFixed(2)} <span class="metric-unit">ms</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">P99 응답 시간</div>
+                <div class="metric-value ${(httpReqDuration['p(99)'] || 0) > 8000 ? 'bad' : (httpReqDuration['p(99)'] || 0) > 4000 ? 'warning' : 'good'}">${(httpReqDuration['p(99)'] || 0).toFixed(2)} <span class="metric-unit">ms</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">최대 응답 시간</div>
+                <div class="metric-value">${(httpReqDuration.max || 0).toFixed(2)} <span class="metric-unit">ms</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">에러율</div>
+                <div class="metric-value ${((errors.rate || 0) * 100) > 5 ? 'bad' : ((errors.rate || 0) * 100) > 1 ? 'warning' : 'good'}">${((errors.rate || 0) * 100).toFixed(2)} <span class="metric-unit">%</span></div>
+            </div>
+        </div>
+
+        <h2>시나리오 구성</h2>
+        <table>
+            <tr>
+                <th>시나리오</th>
+                <th>VU 비율</th>
+                <th>특징</th>
+            </tr>
+            <tr>
+                <td>일반 트래픽</td>
+                <td>80%</td>
+                <td>다양한 상품 구매, 장바구니 기능 사용</td>
+            </tr>
+            <tr>
+                <td>Hot Item 집중</td>
+                <td>20%</td>
+                <td>인기 상품(ID=1)에 집중</td>
+            </tr>
+            <tr>
+                <td>트래픽 스파이크</td>
+                <td>10분 시점</td>
+                <td>갑작스런 부하 증가 (200 VU)</td>
+            </tr>
+        </table>
+
+        <h2>부하 단계</h2>
+        <table>
+            <tr>
+                <th>단계</th>
+                <th>지속 시간</th>
+                <th>VU 수</th>
+                <th>설명</th>
+            </tr>
+            <tr>
+                <td>Warm-up</td>
+                <td>2분</td>
+                <td>0 → 80</td>
+                <td>시스템 준비</td>
+            </tr>
+            <tr>
+                <td>Steady State</td>
+                <td>5분</td>
+                <td>80</td>
+                <td>정상 부하</td>
+            </tr>
+            <tr>
+                <td>Spike</td>
+                <td>3분</td>
+                <td>200</td>
+                <td>트래픽 급증</td>
+            </tr>
+            <tr>
+                <td>Recovery</td>
+                <td>3분</td>
+                <td>80</td>
+                <td>정상 복귀</td>
+            </tr>
+            <tr>
+                <td>Cool-down</td>
+                <td>2분</td>
+                <td>80 → 0</td>
+                <td>종료</td>
+            </tr>
+        </table>
+    </div>
 </body>
 </html>
   `;

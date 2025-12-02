@@ -15,6 +15,7 @@ const purchaseDuration = new Trend('purchase_duration');
 
 // 테스트 설정
 export const options = {
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
   scenarios: {
     // 시나리오 1: 낮은 부하 (Baseline)
     low_load: {

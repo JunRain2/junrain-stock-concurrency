@@ -1,42 +1,27 @@
 package com.example.demo.global.lock.infrastructure.redis
 
 import com.example.demo.global.lock.LockRepository
-import org.springframework.data.redis.core.RedisTemplate
+import org.redisson.api.RedissonClient
+import org.springframework.stereotype.Component
+import java.util.concurrent.TimeUnit
 
+@Component
 class RedisLockRepositoryImpl(
-    private val redisTemplate: RedisTemplate<String, String>
+    private val redissonClient: RedissonClient
 ) : LockRepository {
-    override fun <T> executeWithLock(key: String, action: () -> T): T {
-        TODO("Not yet implemented")
-    }
+    override fun <T> executeWithLock(vararg keys: String, action: () -> T): T {
+        val locks = keys.sorted().map { redissonClient.getLock(it) }.toTypedArray()
+        val multiLock = redissonClient.getMultiLock(*locks)
 
-    override fun <T> executeWithLock(
-        prefix: String,
-        keys: List<String>,
-        action: () -> T
-    ): T {
-        // 정렬
-        val sortedKeys = keys.sorted()
-        // 정렬 순으로 획득
-        for (key in sortedKeys) {
-
+        // 3초 대기, 30초마다 Lock을 갱신
+        return if (multiLock.tryLock(3, -1, TimeUnit.SECONDS)) {
+            try {
+                action()
+            } finally {
+                runCatching { multiLock.unlock() }
+            }
+        } else {
+            throw RuntimeException("Lock 획득 실패")
         }
-        // 로직 수행
-        val result = action()
-
-        // key를 반납
-
-        // key를 얻는 도중 or 로직 도중에 문제가 발생했을 경우 lock을 반납하는 로직까지 고려해야 함
-
-        return result
     }
-
-    override fun getLock(vararg key: String) {
-        TODO("Not yet implemented")
-    }
-
-    override fun releaseLock(vararg key: String) {
-        TODO("Not yet implemented")
-    }
-
 }

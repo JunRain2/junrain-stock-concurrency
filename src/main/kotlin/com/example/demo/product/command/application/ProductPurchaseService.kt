@@ -1,14 +1,14 @@
 package com.example.demo.product.command.application
 
+import com.example.demo.global.lock.LockRepository
 import com.example.demo.product.command.application.dto.PurchaseProductCommand
 import com.example.demo.product.command.application.dto.PurchaseProductResult
 import com.example.demo.product.command.domain.ProductRepository
-import jakarta.transaction.Transactional
 import org.springframework.stereotype.Service
 
 @Service
 class ProductPurchaseService(
-    private val productRepository: ProductRepository,
+    private val productRepository: ProductRepository, private val lockRepository: LockRepository
 ) {
     companion object {
         const val PRODUCT_PREFIX = "product:"
@@ -29,16 +29,18 @@ class ProductPurchaseService(
 //    }
 
     // TODO 성능 테스트를 위해 도메인 로직에 대한 추상화 X
-    @Transactional
     fun decreaseStock(commands: List<PurchaseProductCommand>): List<PurchaseProductResult> {
-        val products = productRepository.findAllByIdsWithLock(commands.map { it.productId })
+        val keys = commands.map { PRODUCT_PREFIX + it.productId }.toTypedArray()
+        return lockRepository.executeWithLock(*keys) {
+            val products = productRepository.findAllById(commands.map { it.productId }).toList()
 
-        for (product in products) {
-            val quantity = commands.find { it.productId == product.id }!!.amount
+            for (product in products) {
+                val quantity = commands.find { it.productId == product.id }!!.amount
 
-            product.decrease(quantity)
+                product.decrease(quantity)
+            }
+
+            productRepository.saveAll(products).map { PurchaseProductResult(it.id) }
         }
-
-        return products.map { PurchaseProductResult(it.id) }
     }
 }
