@@ -6,7 +6,12 @@ import com.example.demo.product.command.application.ProductRegisterService
 import com.example.demo.product.command.application.dto.ProductBulkRegisterCommand
 import com.example.demo.product.command.application.dto.ProductRegisterCommand
 import com.example.demo.product.command.application.dto.PurchaseProductCommand
-import com.example.demo.product.command.ui.dto.*
+import com.example.demo.product.command.ui.dto.BulkPurchaseProductRequest
+import com.example.demo.product.command.ui.dto.BulkPurchaseProductResponse
+import com.example.demo.product.command.ui.dto.BulkRegisterProductRequest
+import com.example.demo.product.command.ui.dto.BulkRegisterProductResponse
+import com.example.demo.product.command.ui.dto.ProductRegisterResponse
+import com.example.demo.product.command.ui.dto.RegisterProductRequest
 import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.*
 
@@ -40,14 +45,19 @@ class ProductCommandController(
         return ApiResponse.ok(response)
     }
 
-    @PostMapping("/{productId}/purchase")
-    fun purchaseProduct(
-        @PathVariable productId: Long,
-        @Valid @RequestBody request: PurchaseProductRequest
-    ): ApiResponse<PurchaseProductResponse> {
-        val command = PurchaseProductCommand.of(productId, request)
-        val result = productPurchaseService.decreaseStock(command)
-        val response = PurchaseProductResponse.from(result)
+    @PostMapping("/purchase")
+    fun purchaseProducts(
+        @Valid @RequestBody request: BulkPurchaseProductRequest
+    ): ApiResponse<BulkPurchaseProductResponse> {
+        val commands = request.items.map { item ->
+            PurchaseProductCommand(
+                productId = item.productId,
+                amount = item.quantity
+            )
+        }
+
+        val results = productPurchaseService.decreaseStock(commands)
+        val response = BulkPurchaseProductResponse.from(results)
 
         return ApiResponse.ok(response)
     }

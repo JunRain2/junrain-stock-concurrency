@@ -7,7 +7,7 @@ import com.example.demo.product.command.domain.Product
 import com.example.demo.product.command.domain.ProductRepository
 import com.example.demo.global.contract.vo.Money
 import com.example.demo.product.command.domain.vo.ProductCode
-import com.example.demo.product.command.infrastructure.JdbcProductBulkInsertRepositoryImpl
+import com.example.demo.product.command.infrastructure.ProductRepositoryImpl
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -19,7 +19,7 @@ import kotlin.test.assertEquals
 class JdbcBulkInsertProductRepositoryTest {
 
     @Autowired
-    private lateinit var repository: JdbcProductBulkInsertRepositoryImpl
+    private lateinit var repository: ProductRepositoryImpl
 
     @Autowired
     private lateinit var productRepository: ProductRepository

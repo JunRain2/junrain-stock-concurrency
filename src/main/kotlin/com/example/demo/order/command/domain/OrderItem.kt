@@ -9,7 +9,7 @@ import jakarta.persistence.*
 class OrderItem(
     @Column(name = "product_id")
     val productId: Long,
-    @Column("product_quantity")
+    @Column(name = "product_quantity")
     val quantity: Long,
     @Column(name = "total_amounts")
     @Embedded

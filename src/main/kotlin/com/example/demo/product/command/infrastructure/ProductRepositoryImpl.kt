@@ -18,7 +18,7 @@ import java.time.LocalDateTime
 private val logger = KotlinLogging.logger {}
 
 @Repository
-class JdbcProductBulkInsertRepositoryImpl(
+class ProductRepositoryImpl(
     private val jdbcTemplate: JdbcTemplate,
     @param:Value("\${bulk-insert.chunk-size}") private val chunkSize: Int,
     @param:Value("\${bulk-insert.retry-milliseconds}") private val retryDelays: List<Long>

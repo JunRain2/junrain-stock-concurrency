@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: demo-test
+
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: create-drop
+      format_sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+
+  datasource:
+    url: jdbc:tc:mysql:8.0:///test_db?TC_TMPFS=/testtmpfs:rw
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
+
+bulk-insert:
+  max-size: 5000
+  chunk-size: 1000
+  retry-milliseconds: 2000,5000
