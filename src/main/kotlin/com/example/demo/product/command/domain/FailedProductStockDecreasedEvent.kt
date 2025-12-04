@@ -1,7 +1,7 @@
 package com.example.demo.product.command.domain
 
 
-data class ProductStockDecreasedEvent(
+data class FailedProductStockDecreasedEvent(
     val event: List<ProductStock>
 ) {
     data class ProductStock(

@@ -7,11 +7,9 @@
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { Rate, Trend, Counter } from 'k6/metrics';
+import { Counter } from 'k6/metrics';
+import { errorRate, purchaseDuration, extractMetrics, logMetrics, getCommonStyles, generateMetricCards } from './common.js';
 
-// 커스텀 메트릭
-const errorRate = new Rate('errors');
-const purchaseDuration = new Trend('purchase_duration');
 const productDistribution = new Counter('product_distribution');
 
 // 테스트 설정
@@ -107,133 +105,29 @@ export default function () {
 }
 
 export function handleSummary(data) {
-  console.log('\n=== Step 2: 다중 상품 분산 테스트 결과 ===\n');
-
-  const metrics = data.metrics;
-  const httpReqs = metrics.http_reqs && metrics.http_reqs.values ? metrics.http_reqs.values : {};
-  const httpReqDuration = metrics.http_req_duration && metrics.http_req_duration.values ? metrics.http_req_duration.values : {};
-  const errors = metrics.errors && metrics.errors.values ? metrics.errors.values : {};
-
-  console.log('[전체 성능 메트릭]');
-  console.log('  총 요청 수: ' + (httpReqs.count || 0));
-  console.log('  평균 응답 시간: ' + (httpReqDuration.avg || 0).toFixed(2) + 'ms');
-  console.log('  P95 응답 시간: ' + (httpReqDuration['p(95)'] || 0).toFixed(2) + 'ms');
-  console.log('  P99 응답 시간: ' + (httpReqDuration['p(99)'] || 0).toFixed(2) + 'ms');
-  console.log('  최대 응답 시간: ' + (httpReqDuration.max || 0).toFixed(2) + 'ms');
-  console.log('  에러율: ' + ((errors.rate || 0) * 100).toFixed(2) + '%');
-  console.log('  초당 요청 수(TPS): ' + (httpReqs.rate || 0).toFixed(2) + '\n');
+  const metrics = extractMetrics(data);
+  logMetrics('Step 2: 다중 상품 분산 테스트 결과', metrics);
 
   return {
     'k6-tests/results/step2-multiple-products-summary.json': JSON.stringify(data, null, 2),
-    'k6-tests/results/step2-multiple-products-summary.html': htmlReport(data),
+    'k6-tests/results/step2-multiple-products-summary.html': htmlReport(metrics),
   };
 }
 
-function htmlReport(data) {
-  const metrics = data.metrics;
-  const httpReqs = metrics.http_reqs && metrics.http_reqs.values ? metrics.http_reqs.values : {};
-  const httpReqDuration = metrics.http_req_duration && metrics.http_req_duration.values ? metrics.http_req_duration.values : {};
-  const errors = metrics.errors && metrics.errors.values ? metrics.errors.values : {};
-
+function htmlReport(metrics) {
   return `
 <!DOCTYPE html>
 <html>
 <head>
     <title>Step 2: 다중 상품 분산 테스트 결과</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
-        .container { max-width: 1200px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h1 { color: #333; border-bottom: 3px solid #2196F3; padding-bottom: 10px; }
-        h2 { color: #555; margin-top: 30px; }
-        .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 20px 0; }
-        .metric-card { background: #f9f9f9; padding: 20px; border-radius: 5px; border-left: 4px solid #2196F3; }
-        .metric-label { font-size: 14px; color: #666; margin-bottom: 5px; }
-        .metric-value { font-size: 24px; font-weight: bold; color: #333; }
-        .metric-unit { font-size: 16px; color: #888; }
-        .good { color: #4CAF50; }
-        .warning { color: #FF9800; }
-        .bad { color: #F44336; }
-        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        th { background-color: #2196F3; color: white; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
-        .info-box { background: #E3F2FD; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #2196F3; }
-    </style>
+    <style>${getCommonStyles('#2196F3')}</style>
 </head>
 <body>
     <div class="container">
         <h1>Step 2: 다중 상품 분산 테스트 결과</h1>
         <p>10개 상품에 대한 랜덤 분산 요청으로 Lock 경합 최소화 테스트</p>
-
-        <div class="info-box">
-            <strong>테스트 특징:</strong> 요청마다 ID=1~10 중 랜덤 상품을 선택하여 구매. Lock 경합이 분산되어 Step 1보다 높은 처리량과 낮은 응답 시간이 예상됩니다.
-        </div>
-
         <h2>전체 성능 메트릭</h2>
-        <div class="metric-grid">
-            <div class="metric-card">
-                <div class="metric-label">총 요청 수</div>
-                <div class="metric-value">${httpReqs.count || 0}</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-label">초당 요청 수 (TPS)</div>
-                <div class="metric-value">${(httpReqs.rate || 0).toFixed(2)}</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-label">평균 응답 시간</div>
-                <div class="metric-value">${(httpReqDuration.avg || 0).toFixed(2)} <span class="metric-unit">ms</span></div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-label">P95 응답 시간</div>
-                <div class="metric-value ${(httpReqDuration['p(95)'] || 0) > 3000 ? 'bad' : (httpReqDuration['p(95)'] || 0) > 1500 ? 'warning' : 'good'}">${(httpReqDuration['p(95)'] || 0).toFixed(2)} <span class="metric-unit">ms</span></div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-label">P99 응답 시간</div>
-                <div class="metric-value ${(httpReqDuration['p(99)'] || 0) > 5000 ? 'bad' : (httpReqDuration['p(99)'] || 0) > 3000 ? 'warning' : 'good'}">${(httpReqDuration['p(99)'] || 0).toFixed(2)} <span class="metric-unit">ms</span></div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-label">최대 응답 시간</div>
-                <div class="metric-value">${(httpReqDuration.max || 0).toFixed(2)} <span class="metric-unit">ms</span></div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-label">에러율</div>
-                <div class="metric-value ${((errors.rate || 0) * 100) > 5 ? 'bad' : ((errors.rate || 0) * 100) > 1 ? 'warning' : 'good'}">${((errors.rate || 0) * 100).toFixed(2)} <span class="metric-unit">%</span></div>
-            </div>
-        </div>
-
-        <h2>시나리오별 부하 단계</h2>
-        <table>
-            <tr>
-                <th>단계</th>
-                <th>VU 수</th>
-                <th>지속 시간</th>
-                <th>설명</th>
-            </tr>
-            <tr>
-                <td>Low Load</td>
-                <td>20</td>
-                <td>30초</td>
-                <td>낮은 부하 상태</td>
-            </tr>
-            <tr>
-                <td>Medium Load</td>
-                <td>100</td>
-                <td>30초</td>
-                <td>중간 부하 상태</td>
-            </tr>
-            <tr>
-                <td>High Load</td>
-                <td>200</td>
-                <td>30초</td>
-                <td>높은 부하 상태</td>
-            </tr>
-            <tr>
-                <td>Very High Load</td>
-                <td>500</td>
-                <td>30초</td>
-                <td>매우 높은 부하 - 병렬 처리 한계 테스트</td>
-            </tr>
-        </table>
+        <div class="metric-grid">${generateMetricCards(metrics)}</div>
     </div>
 </body>
 </html>
