@@ -33,6 +33,10 @@ MYSQL_USER="${MYSQL_USER:-root}"
 MYSQL_PASSWORD="${MYSQL_PASSWORD:-1234}"
 MYSQL_DB="${MYSQL_DB:-foo}"
 
+# Redis 접속 정보
+REDIS_HOST="${REDIS_HOST:-localhost}"
+REDIS_PORT="${REDIS_PORT:-6379}"
+
 # 결과 디렉토리 생성
 mkdir -p "$RESULTS_DIR"
 
@@ -44,6 +48,22 @@ else
     echo -e "${RED}✗ 애플리케이션이 작동하지 않습니다. BASE_URL을 확인하세요: ${BASE_URL}${NC}"
     exit 1
 fi
+
+# Redis 초기화 함수
+reset_redis() {
+    echo -e "${YELLOW}Redis 재고 초기화 중...${NC}"
+
+    # init-redis-stock.sh 실행
+    REDIS_HOST="${REDIS_HOST}" REDIS_PORT="${REDIS_PORT}" bash k6-tests/init-redis-stock.sh > /dev/null 2>&1
+
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✓ Redis 재고 초기화 완료${NC}"
+    else
+        echo -e "${RED}✗ Redis 재고 초기화 실패${NC}"
+        echo -e "${YELLOW}다음 명령으로 수동 실행: bash k6-tests/init-redis-stock.sh${NC}\n"
+        exit 1
+    fi
+}
 
 # DB 초기화 함수
 reset_database() {
@@ -59,13 +79,17 @@ reset_database() {
     fi
 
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✓ 데이터베이스 리셋 완료${NC}\n"
+        echo -e "${GREEN}✓ 데이터베이스 리셋 완료${NC}"
     else
         echo -e "${RED}✗ 데이터베이스 리셋 실패${NC}"
         echo -e "${YELLOW}Docker 사용 시: docker-compose exec -T mysql mysql -u${MYSQL_USER} -p${MYSQL_PASSWORD} ${MYSQL_DB} < ${DB_RESET_SQL}${NC}"
         echo -e "${YELLOW}로컬 MySQL 사용 시: MYSQL_PWD=${MYSQL_PASSWORD} mysql -u${MYSQL_USER} ${MYSQL_DB} < ${DB_RESET_SQL}${NC}\n"
         exit 1
     fi
+
+    # Redis도 초기화
+    reset_redis
+    echo ""
     sleep 2
 }
 

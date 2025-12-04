@@ -1,14 +1,17 @@
 package com.example.demo.product.command.application
 
-import com.example.demo.global.lock.LockRepository
 import com.example.demo.product.command.application.dto.PurchaseProductCommand
 import com.example.demo.product.command.application.dto.PurchaseProductResult
-import com.example.demo.product.command.domain.ProductRepository
+import com.example.demo.product.command.domain.ProductStockDecreasedEvent
+import com.example.demo.product.command.domain.StockRepository
+import jakarta.transaction.Transactional
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 
 @Service
 class ProductPurchaseService(
-    private val productRepository: ProductRepository, private val lockRepository: LockRepository
+    private val stockRepository: StockRepository,
+    private val applicationEventPublisher: ApplicationEventPublisher
 ) {
     companion object {
         const val PRODUCT_PREFIX = "product:"
@@ -29,18 +32,33 @@ class ProductPurchaseService(
 //    }
 
     // TODO 성능 테스트를 위해 도메인 로직에 대한 추상화 X
+    @Transactional
     fun decreaseStock(commands: List<PurchaseProductCommand>): List<PurchaseProductResult> {
-        val keys = commands.map { PRODUCT_PREFIX + it.productId }.toTypedArray()
-        return lockRepository.executeWithLock(*keys) {
-            val products = productRepository.findAllById(commands.map { it.productId }).toList()
+        val result = mutableListOf<PurchaseProductCommand>()
 
-            for (product in products) {
-                val quantity = commands.find { it.productId == product.id }!!.amount
-
-                product.decrease(quantity)
+        try {
+            for (command in commands.sortedBy { it.productId }) {
+                try {
+                    stockRepository.decreaseStock(command.productId, command.amount)
+                    result.add(command)
+                } catch (e: Exception) {
+                    // Redis에서 decrement는 이미 실행되었으므로
+                    // 보상을 위해 result에 추가하고 예외를 다시 던짐
+                    result.add(command)
+                    throw e
+                }
             }
-
-            productRepository.saveAll(products).map { PurchaseProductResult(it.id) }
+        } finally {
+            // 성공했을 경우 -> DB에 반영 (현재는 배치로 처리 예정)
+            // 실패했을 경우 -> Redis에 보상로직
+            val productStockEvents = result.map {
+                ProductStockDecreasedEvent.ProductStock(
+                    productId = it.productId, stock = it.amount
+                )
+            }
+            applicationEventPublisher.publishEvent(ProductStockDecreasedEvent(productStockEvents))
         }
+
+        return result.map { PurchaseProductResult(it.productId) }
     }
 }
