@@ -15,7 +15,7 @@ class ProductStockDecreasedHandler(
     @EventListener(classes = [FailedProductStockDecreasedEvent::class])
     @Async
     fun handleFailedProductStockDecrease(event: FailedProductStockDecreasedEvent) {
-        stockRepository.increaseStock(*event.event.map {
+        stockRepository.updateStocks(*event.event.map {
             StockItem(
                 productId = it.productId, quantity = it.stock
             )

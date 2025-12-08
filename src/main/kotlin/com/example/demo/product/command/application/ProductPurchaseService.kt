@@ -15,6 +15,7 @@ class ProductPurchaseService(
 ) {
     // TODO 성능 테스트를 위해 도메인 로직에 대한 추상화 X
     fun decreaseStock(commands: List<PurchaseProductCommand>): List<PurchaseProductResult> {
+        // 옳은 로직인가?
         val stockItems = commands.map {
             StockItem(
                 productId = it.productId, quantity = it.amount
@@ -22,7 +23,7 @@ class ProductPurchaseService(
         }
 
         try {
-            stockRepository.decreaseStock(*stockItems.toTypedArray())
+            stockRepository.updateStocks(*stockItems.toTypedArray())
         } catch (e: Exception) {
             val event = FailedProductStockDecreasedEvent(stockItems.map {
                 FailedProductStockDecreasedEvent.ProductStock(
