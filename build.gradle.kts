@@ -56,6 +56,7 @@ dependencies {
     testImplementation("org.testcontainers:mysql:1.19.3")
     testImplementation("org.testcontainers:jdbc:1.19.3")
     testImplementation("com.redis:testcontainers-redis:2.2.2")
+    testImplementation("org.testcontainers:testcontainers-toxiproxy:2.0.2")
 }
 
 kotlin {

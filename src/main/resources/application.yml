@@ -15,12 +15,10 @@ spring:
     password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-redisson:
-  single-server-config:
-    address: "redis://localhost:6379"
-    connection-minimum-idle-size: 5
-    connection-pool-size: 20
-    idle-connection-timeout: 10000
+  data:
+    redis:
+      host: "localhost"
+      port: 6379
 
 management:
   endpoints:

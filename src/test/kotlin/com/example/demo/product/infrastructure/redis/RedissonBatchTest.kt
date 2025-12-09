@@ -1,11 +1,13 @@
 package com.example.demo.product.infrastructure.redis
 
-import com.example.demo.common.RedisTestContainersConfig
+import com.example.demo.common.RedisTestContainersConfig.Companion.redisProxy
+import eu.rekawek.toxiproxy.model.ToxicDirection
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.assertThrows
 import org.redisson.api.BatchOptions
 import org.redisson.api.RedissonClient
+import org.redisson.client.RedisConnectionException
 import org.redisson.client.RedisException
 import org.redisson.client.RedisTimeoutException
 import org.springframework.beans.factory.annotation.Autowired
@@ -32,8 +34,7 @@ class RedissonBatchTest @Autowired constructor(
         redissonClient.getBucket<String>(key).set("dump")
 
         val batch = redissonClient.createBatch(
-            BatchOptions.defaults()
-                .executionMode(BatchOptions.ExecutionMode.IN_MEMORY)
+            BatchOptions.defaults().executionMode(BatchOptions.ExecutionMode.IN_MEMORY)
                 .responseTimeout(3, TimeUnit.SECONDS)
         )
 
@@ -55,8 +56,7 @@ class RedissonBatchTest @Autowired constructor(
         }
 
         val batch = redissonClient.createBatch(
-            BatchOptions.defaults()
-                .executionMode(BatchOptions.ExecutionMode.IN_MEMORY)
+            BatchOptions.defaults().executionMode(BatchOptions.ExecutionMode.IN_MEMORY)
                 .responseTimeout(3, TimeUnit.SECONDS)
         )
 
@@ -78,8 +78,7 @@ class RedissonBatchTest @Autowired constructor(
         redissonClient.getBucket<String>(key1).set("dump")
 
         val batch = redissonClient.createBatch(
-            BatchOptions.defaults()
-                .executionMode(BatchOptions.ExecutionMode.IN_MEMORY)
+            BatchOptions.defaults().executionMode(BatchOptions.ExecutionMode.IN_MEMORY)
                 .responseTimeout(3, TimeUnit.SECONDS)
         )
 
@@ -96,30 +95,56 @@ class RedissonBatchTest @Autowired constructor(
 
     @Test
     fun `batch() 중 네트워크 Timeout 장애가 발생했을 경우`() {
-        val redisContainer = RedisTestContainersConfig.redisContainer
         val key = "product:1"
 
         val batch = redissonClient.createBatch(
-            BatchOptions.defaults()
-                .executionMode(BatchOptions.ExecutionMode.IN_MEMORY)
+            BatchOptions.defaults().executionMode(BatchOptions.ExecutionMode.IN_MEMORY)
                 .responseTimeout(1, TimeUnit.SECONDS)
         )
         batch.getAtomicLong(key).addAndGetAsync(1L)
 
-        // Redis 일시 정지 - 네트워크 장애 재현
-        redisContainer.dockerClient
-            .pauseContainerCmd(redisContainer.containerId)
-            .exec()
+        // DOWNSTREAM -> 응답 자체가 안옴
+        val toxi = redisProxy.toxics().timeout("timeout", ToxicDirection.DOWNSTREAM, 0)
 
         val error = assertThrows<RedisTimeoutException> { batch.execute() }
         logger.info { "error message: ${error.message}" }
 
-        redisContainer.dockerClient
-            .unpauseContainerCmd(redisContainer.containerId)
-            .exec()
+        toxi.remove()
 
         val result = redissonClient.getAtomicLong(key).get()
         // 1회 + 재시도 기본값 4회 = 5회
         assertEquals(5L, result)
+    }
+
+    @Test
+    fun `batch() 중 네트워크 connection 장애가 발생했을 경우`() {
+        val key = "product:1"
+
+        val batch = redissonClient.createBatch(
+            BatchOptions.defaults().executionMode(BatchOptions.ExecutionMode.IN_MEMORY)
+                .responseTimeout(1, TimeUnit.SECONDS)
+        )
+        batch.getAtomicLong(key).addAndGetAsync(1L)
+
+        // 서버 자체가 닫힌 경우 -> 프록시를 닫음
+        redisProxy.disable()
+
+        val error = assertThrows<RedisConnectionException> { batch.execute() }
+        logger.info { "error message: ${error.message}" }
+
+        redisProxy.enable()
+
+        val result = redissonClient.getAtomicLong(key).get()
+        assertEquals(0L, result)
+    }
+
+    @Test
+    fun `RedissonAtomicLong은 key가 없는 경우 0을 반환`() {
+        val randomKey = run {
+            val allowedChars = ('A'..'Z') + ('a'..'z') + ('0'..'9') // 영문 대소문자 및 숫자
+            List(10) { allowedChars.random() }.joinToString("")
+        }
+
+        assertEquals(0, redissonClient.getAtomicLong(randomKey).get())
     }
 }
