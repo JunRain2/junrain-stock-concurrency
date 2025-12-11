@@ -6,7 +6,7 @@ import com.example.demo.global.logging.ErrorLogType
 import com.example.demo.product.command.domain.ProductStockService
 import com.example.demo.product.command.domain.StockChange
 import com.example.demo.product.command.infrastructure.mysql.JpaProductRepository
-import com.example.demo.product.command.infrastructure.redis.ProductRedisRepository
+import com.example.demo.product.command.infrastructure.redis.RedisStockRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -19,7 +19,7 @@ private val logger = KotlinLogging.logger { }
 
 @Service
 class ProductStockServiceImpl(
-    private val productRedisRepository: ProductRedisRepository,
+    private val redisStockRepository: RedisStockRepository,
     private val jpaProductRepository: JpaProductRepository,
     private val errorLogRepository: ErrorLogRepository,
     private val applicationScope: CoroutineScope,
@@ -29,7 +29,7 @@ class ProductStockServiceImpl(
 
         val minusStocks = changes.map { StockChange(it.productId, -it.quantity) }.toTypedArray()
         try {
-            productRedisRepository.updateStocks(requestKey, *minusStocks)
+            redisStockRepository.updateStocks(requestKey, *minusStocks)
         } catch (e: Exception) {
             when (e) {
                 // Redis에 도달하지 못했기에 롤백 필요 X
@@ -59,7 +59,7 @@ class ProductStockServiceImpl(
         val requestKey = UUID.randomUUID().toString()
 
         try {
-            productRedisRepository.updateStocks(requestKey, *changes)
+            redisStockRepository.updateStocks(requestKey, *changes)
         } catch (e: Exception) {
             when (e) {
                 is RedisConnectionException, is RedisTimeoutException -> {

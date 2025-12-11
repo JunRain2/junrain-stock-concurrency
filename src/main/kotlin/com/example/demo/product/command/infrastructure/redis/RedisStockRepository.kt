@@ -12,11 +12,11 @@ import java.util.concurrent.TimeUnit
 private val logger = KotlinLogging.logger { }
 
 @Repository
-class ProductRedisRepository(
-    private val redisson: RedissonClient,
+class RedisStockRepository(
+    private val redissonClient: RedissonClient,
 ) {
     fun setStockIfAbsent(productId: Long, quantity: Long) {
-        redisson.getAtomicLong(generateStockKey(productId))
+        redissonClient.getAtomicLong(generateStockKey(productId))
             .takeUnless { it.isExists }
             ?.set(quantity)
     }
@@ -38,7 +38,7 @@ class ProductRedisRepository(
     }
 
     private fun generateBatch(requestKey: String): RBatch {
-        val batch = redisson.createBatch(
+        val batch = redissonClient.createBatch(
             BatchOptions.defaults()
                 .executionMode(BatchOptions.ExecutionMode.IN_MEMORY)
                 .responseTimeout(1, TimeUnit.SECONDS)
@@ -51,4 +51,8 @@ class ProductRedisRepository(
     }
 
     private fun generateRequestKey(id: String) = "request:$id"
+
+    fun hasRequestKey(requestKey: String): Boolean {
+        return redissonClient.getBucket<String>(requestKey).isExists
+    }
 }

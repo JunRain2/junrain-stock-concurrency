@@ -5,7 +5,7 @@ import com.example.demo.product.command.domain.Product
 import com.example.demo.product.command.domain.ProductRepository
 import com.example.demo.product.command.infrastructure.mysql.JdbcProductRepository
 import com.example.demo.product.command.infrastructure.mysql.JpaProductRepository
-import com.example.demo.product.command.infrastructure.redis.ProductRedisRepository
+import com.example.demo.product.command.infrastructure.redis.RedisStockRepository
 import com.example.demo.product.exception.ProductDuplicateCodeException
 import com.example.demo.product.exception.ProductNotFoundException
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -18,7 +18,7 @@ private val logger = KotlinLogging.logger { }
 class ProductRepositoryImpl(
     private val jpaProductRepository: JpaProductRepository,
     private val jdbcProductRepository: JdbcProductRepository,
-    private val productRedisRepository: ProductRedisRepository,
+    private val redisStockRepository: RedisStockRepository,
 ) : ProductRepository {
     override fun save(product: Product): Product {
         val product = try {
@@ -28,7 +28,7 @@ class ProductRepositoryImpl(
             throw ProductDuplicateCodeException(product.code)
         }
 
-        productRedisRepository.setStockIfAbsent(productId = product.id, quantity = product.stock)
+        redisStockRepository.setStockIfAbsent(productId = product.id, quantity = product.stock)
 
         return product
     }
