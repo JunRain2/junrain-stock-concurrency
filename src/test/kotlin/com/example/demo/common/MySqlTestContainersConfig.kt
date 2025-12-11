@@ -7,22 +7,25 @@ import org.testcontainers.utility.DockerImageName
 @Configuration
 class MySqlTestContainersConfig {
     companion object {
-        private val mySqlContainer: MySQLContainer<*> = MySQLContainer(DockerImageName.parse("mysql:8.0"))
-            .apply {
-                withDatabaseName("test_db")
-                withUsername("test")
-                withPassword("test")
-                withExposedPorts(3306)
-                withCommand(
-                    "--character-set-server=utf8mb4",
-                    "--collation-server=utf8mb4_general_ci",
-                    "--skip-character-set-client-handshake",
-                )
-                start()
-            }
+        private val mySqlContainer: MySQLContainer<*> =
+            MySQLContainer(DockerImageName.parse("mysql:8.0"))
+                .apply {
+                    withDatabaseName("test_db")
+                    withUsername("test")
+                    withPassword("test")
+                    withExposedPorts(3306)
+                    withCommand(
+                        "--character-set-server=utf8mb4",
+                        "--collation-server=utf8mb4_general_ci",
+                        "--skip-character-set-client-handshake",
+                    )
+                    withInitScript("db/migration/create_table.sql")
+                    start()
+                }
 
         init {
-            val mySqlJdbcUrl = mySqlContainer.let { "jdbc:mysql://${it.host}:${it.firstMappedPort}/${it.databaseName}" }
+            val mySqlJdbcUrl =
+                mySqlContainer.let { "jdbc:mysql://${it.host}:${it.firstMappedPort}/${it.databaseName}" }
             System.setProperty("spring.datasource.url", mySqlJdbcUrl)
             System.setProperty("spring.datasource.username", mySqlContainer.username)
             System.setProperty("spring.datasource.password", mySqlContainer.password)

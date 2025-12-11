@@ -1,7 +1,7 @@
 package com.example.demo.product.command.ui
 
 import com.example.demo.global.contract.ApiResponse
-import com.example.demo.product.command.application.ProductPurchaseService
+import com.example.demo.product.command.application.ProductOrderService
 import com.example.demo.product.command.application.ProductRegisterService
 import com.example.demo.product.command.application.dto.ProductBulkRegisterCommand
 import com.example.demo.product.command.application.dto.ProductRegisterCommand
@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("/api/v1/products")
 class ProductCommandController(
     private val productRegisterService: ProductRegisterService,
-    private val productPurchaseService: ProductPurchaseService
+    private val productOrderService: ProductOrderService
 ) {
     @PostMapping
     fun registerProduct(
@@ -56,7 +56,7 @@ class ProductCommandController(
             )
         }
 
-        val results = productPurchaseService.decreaseStock(commands)
+        val results = productOrderService.reserveProductStock(commands)
         val response = BulkPurchaseProductResponse.from(results)
 
         return ApiResponse.ok(response)

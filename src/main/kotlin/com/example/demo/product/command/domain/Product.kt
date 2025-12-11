@@ -8,11 +8,15 @@ import jakarta.persistence.*
 @Entity
 @Table(name = "products")
 class Product(
-    @Column(name = "owner_id") val ownerId: Long,
-
+    @Column(name = "owner_id")
+    val ownerId: Long,
     @Embedded @AttributeOverride(
         name = "code", column = Column(name = "product_code", unique = true)
-    ) val code: ProductCode, price: Money, stock: Long, name: String
+    ) val code: ProductCode,
+    @Column(name = "stock")
+    val stock: Long,
+    price: Money,
+    name: String
 ) : BaseEntity() {
     @Embedded
     @AttributeOverrides(
@@ -23,10 +27,6 @@ class Product(
         )
     )
     var price: Money = price
-        private set
-
-    @Column(name = "stock")
-    var stock: Long = stock
         private set
 
     @Column(name = "name", length = 20)
@@ -46,12 +46,6 @@ class Product(
 
     private fun validateStock(stock: Long) {
         require(stock >= 0) { "상품재고는 0개 이상이어야 합니다" }
-    }
-
-    fun decrease(quantity: Long) {
-        require(this.stock - quantity >= 0) { "재고가 없습니다." }
-
-        this.stock -= quantity
     }
 
     fun hasEnoughStock(quantity: Long): Boolean {

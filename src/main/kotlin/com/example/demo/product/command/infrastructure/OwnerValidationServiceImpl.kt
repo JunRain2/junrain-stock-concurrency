@@ -1,8 +1,8 @@
 package com.example.demo.product.command.infrastructure
 
-import com.example.demo.product.exception.ProductAccessDeniedException
 import com.example.demo.member.command.application.MemberRoleVerificationService
 import com.example.demo.product.command.domain.OwnerValidationService
+import com.example.demo.product.exception.ProductAccessDeniedException
 import org.springframework.stereotype.Service
 
 @Service

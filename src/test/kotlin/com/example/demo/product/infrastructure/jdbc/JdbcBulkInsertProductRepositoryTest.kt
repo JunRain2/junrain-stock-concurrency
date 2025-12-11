@@ -1,13 +1,13 @@
 package com.example.demo.product.infrastructure.jdbc
 
+import com.example.demo.global.contract.vo.Money
 import com.example.demo.member.command.domain.Member
 import com.example.demo.member.command.domain.MemberRepository
 import com.example.demo.member.command.domain.MemberType
 import com.example.demo.product.command.domain.Product
-import com.example.demo.product.command.domain.ProductRepository
-import com.example.demo.global.contract.vo.Money
 import com.example.demo.product.command.domain.vo.ProductCode
-import com.example.demo.product.command.infrastructure.ProductRepositoryImpl
+import com.example.demo.product.command.infrastructure.mysql.JdbcProductRepository
+import com.example.demo.product.command.infrastructure.mysql.JpaProductRepository
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -19,10 +19,10 @@ import kotlin.test.assertEquals
 class JdbcBulkInsertProductRepositoryTest {
 
     @Autowired
-    private lateinit var repository: ProductRepositoryImpl
+    private lateinit var repository: JdbcProductRepository
 
     @Autowired
-    private lateinit var productRepository: ProductRepository
+    private lateinit var productRepository: JpaProductRepository
 
     @Autowired
     private lateinit var memberRepository: MemberRepository
@@ -31,7 +31,8 @@ class JdbcBulkInsertProductRepositoryTest {
 
     @BeforeEach
     fun setup() {
-        testMember = memberRepository.save(Member(memberType = MemberType.SELLER, name = "Test Seller"))
+        testMember =
+            memberRepository.save(Member(memberType = MemberType.SELLER, name = "Test Seller"))
     }
 
     @AfterEach

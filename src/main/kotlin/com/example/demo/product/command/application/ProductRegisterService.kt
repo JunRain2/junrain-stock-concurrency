@@ -9,7 +9,6 @@ import com.example.demo.product.command.domain.OwnerValidationService
 import com.example.demo.product.command.domain.Product
 import com.example.demo.product.command.domain.ProductRepository
 import com.example.demo.product.command.domain.vo.ProductCode
-import com.example.demo.product.exception.ProductDuplicateCodeException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
@@ -30,13 +29,7 @@ class ProductRegisterService(
             code = ProductCode(command.code),
             price = Money.of(command.price),
             stock = command.stock
-        ).let {
-            try {
-                productRepository.save(it)
-            } catch (e: DataIntegrityViolationException) {
-                throw ProductDuplicateCodeException(it.code)
-            }
-        }
+        ).let { productRepository.save(it) }
 
         return RegisterProductResult(
             productId = product.id

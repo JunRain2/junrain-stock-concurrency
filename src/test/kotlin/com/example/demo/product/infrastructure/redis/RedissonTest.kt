@@ -9,20 +9,21 @@ import org.redisson.api.BatchOptions
 import org.redisson.api.RedissonClient
 import org.redisson.client.RedisConnectionException
 import org.redisson.client.RedisException
-import org.redisson.client.RedisTimeoutException
+import org.redisson.client.RedisResponseTimeoutException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 
 private val logger = KotlinLogging.logger { }
 
 @SpringBootTest
-class RedissonBatchTest @Autowired constructor(
+class RedissonTest @Autowired constructor(
     private val redissonClient: RedissonClient,
-
-    ) {
+) {
     @BeforeEach
     fun beforeEach() {
         redissonClient.keys.flushdb()
@@ -86,7 +87,9 @@ class RedissonBatchTest @Autowired constructor(
         batch.getAtomicLong(key1).addAndGetAsync(key2Value)
         batch.getAtomicLong(key2).addAndGetAsync(1)
 
-        assertThrows<RedisException> { batch.execute() }
+        // 무슨 에러인지 터트려봐야지
+        val error = assertThrows<RedisException> { batch.execute() }
+        logger.info { "error type : ${error.javaClass.simpleName}" }
         val result = redissonClient.getAtomicLong(key2).get()
 
         logger.info { "$key2 : $result" }
@@ -106,7 +109,7 @@ class RedissonBatchTest @Autowired constructor(
         // DOWNSTREAM -> 응답 자체가 안옴
         val toxi = redisProxy.toxics().timeout("timeout", ToxicDirection.DOWNSTREAM, 0)
 
-        val error = assertThrows<RedisTimeoutException> { batch.execute() }
+        val error = assertThrows<RedisResponseTimeoutException> { batch.execute() }
         logger.info { "error message: ${error.message}" }
 
         toxi.remove()
@@ -146,5 +149,51 @@ class RedissonBatchTest @Autowired constructor(
         }
 
         assertEquals(0, redissonClient.getAtomicLong(randomKey).get())
+    }
+
+    @Test
+    fun `RedisTimeoutException이 터졌지만 Redis에 데이터가 반영이 안된 경우`() {
+        val key = "product:1"
+        val value = 10L
+
+        val toxi = redisProxy.toxics().timeout("cut", ToxicDirection.UPSTREAM, 0)
+
+        val error = assertThrows<RedisResponseTimeoutException> {
+            redissonClient.getAtomicLong(key).set(value)
+        }
+        logger.info { "error message: ${error.message}" }
+
+        toxi.remove()
+
+        // 데이터가 반영이 안돼있어야 함
+        assertEquals(0, redissonClient.getAtomicLong(key).get())
+    }
+
+    @Test
+    fun `setIfAbsent()는 Redis의 NX 옵션을 사용한다`() {
+        val key = "product:1"
+        val value = 10L
+        val value2 = 20L
+
+        redissonClient.getBucket<Long>(key).set(value)
+        // 새로운 값을 세팅
+        val result = redissonClient.getBucket<Long>(key).setIfAbsent(value2)
+        assertFalse(result)
+
+        val redisValue = redissonClient.getBucket<Long>(key).get()
+        assertNotEquals(redisValue, value2)
+        assertEquals(redisValue, value)
+    }
+
+    @Test
+    fun `Buket Long 으로 저장하면 AtomicLong을 활용할 수 없다`() {
+        // 둘은 저장하는 방식이 다르기 때문에 활용할 수 없음
+        // Buket은 자바의 객체를 직렬화하지만 AtomicLong은 직렬화 오버헤드 없이 숫자를 문자열로 저장
+        val key = "product:1"
+        redissonClient.getBucket<Long>(key).set(10)
+
+        assertThrows<RedisException> {
+            redissonClient.getAtomicLong(key).get()
+        }
     }
 }
