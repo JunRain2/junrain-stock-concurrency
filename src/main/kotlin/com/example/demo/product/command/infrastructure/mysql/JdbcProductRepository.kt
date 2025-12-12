@@ -9,14 +9,14 @@ import org.springframework.dao.DataAccessResourceFailureException
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.dao.TransientDataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.stereotype.Repository
+import org.springframework.stereotype.Component
 import java.lang.Thread.sleep
 import java.sql.Timestamp
 import java.time.LocalDateTime
 
 private val logger = KotlinLogging.logger {}
 
-@Repository
+@Component
 class JdbcProductRepository(
     private val jdbcTemplate: JdbcTemplate,
     @param:Value("\${bulk-insert.chunk-size}") private val chunkSize: Int,

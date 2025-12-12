@@ -14,15 +14,16 @@ class ErrorLogRepository(
     private val jdbcTemplate: JdbcTemplate, private val objectMapper: ObjectMapper
 ) {
     fun saveErrorLog(requestKey: String, reason: ErrorLogType, content: Any) {
+        logger.info { "${reason.name} 에러 로그 저장 시작" }
         val sql = """
-            INSERT INTO exception_logs (request_id, request_content, reason) VALUES (?, ?, ?)
+            INSERT INTO exception_logs (request_key, request_content, reason) VALUES (?, ?, ?)
         """.trimIndent()
 
         val jsonContent = objectMapper.writeValueAsString(content).toString()
 
         try {
             jdbcTemplate.update(
-                sql, requestKey, jsonContent, reason.toString()
+                sql, requestKey, jsonContent, reason.name
             )
         } catch (e: Exception) {
             logger.error(e) { "로그 삽입 실패 : $requestKey : $content" }
@@ -33,10 +34,10 @@ class ErrorLogRepository(
         reason: ErrorLogType, typeRef: TypeReference<T>
     ): List<ErrorLog<T>> {
         val sql = """
-            SELECT request_key, content
+            SELECT request_key as request_key, request_content as content
             FROM exception_logs
-            WHERE reason = ? 
-              AND is_excuted = false 
+            WHERE reason = ?
+              AND is_executed = false
               AND created_at <= DATE_SUB(NOW(), INTERVAL 1 MINUTE)
             ORDER BY created_at
     """.trimIndent()
@@ -53,7 +54,7 @@ class ErrorLogRepository(
 
     fun setExecuted(requestKey: String) {
         val sql = """
-            UPDATE exception_logs e SET e.is_executed = true WHERE exception_logs.id = ?
+            UPDATE exception_logs SET is_executed = true WHERE request_key = ?
         """.trimIndent()
 
         jdbcTemplate.update(

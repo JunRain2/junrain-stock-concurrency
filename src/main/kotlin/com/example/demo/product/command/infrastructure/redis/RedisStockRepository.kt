@@ -6,12 +6,12 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.redisson.api.BatchOptions
 import org.redisson.api.RBatch
 import org.redisson.api.RedissonClient
-import org.springframework.stereotype.Repository
+import org.springframework.stereotype.Component
 import java.util.concurrent.TimeUnit
 
 private val logger = KotlinLogging.logger { }
 
-@Repository
+@Component
 class RedisStockRepository(
     private val redissonClient: RedissonClient,
 ) {

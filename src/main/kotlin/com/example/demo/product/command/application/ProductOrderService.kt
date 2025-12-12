@@ -22,6 +22,7 @@ class ProductOrderService(
         } catch (e: Exception) {
             when (e) {
                 is InfraHandledException -> {}
+                // 롤백 로직을 수행
                 is ProductOutOfStockException -> {}
             }
         }

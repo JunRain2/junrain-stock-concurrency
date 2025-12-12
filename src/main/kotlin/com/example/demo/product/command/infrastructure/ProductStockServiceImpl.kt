@@ -98,7 +98,7 @@ class ProductStockServiceImpl(
 
     private fun saveRedisStockChangeException(requestKey: String, vararg changes: StockChange) {
         errorLogRepository.saveErrorLog(
-            requestKey = requestKey, content = changes, reason = ErrorLogType.STOCK_CHANGE
+            requestKey = requestKey, reason = ErrorLogType.STOCK_CHANGE, content = changes.toList()
         )
     }
 }

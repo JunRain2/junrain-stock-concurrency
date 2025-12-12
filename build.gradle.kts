@@ -54,10 +54,10 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     // Testcontainers
-    testImplementation("org.testcontainers:testcontainers:1.19.3")
-    testImplementation("org.testcontainers:junit-jupiter:1.19.3")
-    testImplementation("org.testcontainers:mysql:1.19.3")
-    testImplementation("org.testcontainers:jdbc:1.19.3")
+    testImplementation("org.testcontainers:testcontainers:1.20.4")
+    testImplementation("org.testcontainers:junit-jupiter:1.20.4")
+    testImplementation("org.testcontainers:mysql:1.20.4")
+    testImplementation("org.testcontainers:jdbc:1.20.4")
     testImplementation("com.redis:testcontainers-redis:2.2.2")
     testImplementation("org.testcontainers:testcontainers-toxiproxy:2.0.2")
 }
