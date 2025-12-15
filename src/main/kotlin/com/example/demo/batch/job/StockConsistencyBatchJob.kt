@@ -9,10 +9,10 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.quartz.DisallowConcurrentExecution
 import org.quartz.JobExecutionContext
 import org.redisson.client.RedisConnectionException
+import org.redisson.client.RedisException
 import org.redisson.client.RedisTimeoutException
 import org.springframework.scheduling.quartz.QuartzJobBean
 import org.springframework.stereotype.Component
-import java.util.*
 
 private val logger = KotlinLogging.logger { }
 
@@ -32,34 +32,46 @@ class StockConsistencyBatchJob(
      * 코드라 둘 중 하나라도 계약이 바뀌면 바뀌는게 맞아
      */
     override fun executeInternal(context: JobExecutionContext) {
-        // 타이밍 이슈로 인해 1분 전의 데이터를 가져오기
         errorLogRepository.findAllErrorLog(
             reason = ErrorLogType.STOCK_CHANGE,
             typeRef = object : TypeReference<List<StockChange>>() {},
         ).forEach { errorLog ->
-            // 실행했다는 표시 -> 다시 실행 안되게
-            errorLogRepository.setExecuted(errorLog.requestKey)
+            val requestKey = errorLog.requestKey
 
-            // Redis에 requestKey가 존재하지 않는 경우 재시도
-            if (!redisStockRepository.hasRequestKey(errorLog.requestKey)) {
-                val newRequestKey = UUID.randomUUID().toString()
-                try {
-                    redisStockRepository.updateStocks(
-                        requestKey = newRequestKey, stockChanges = errorLog.content.toTypedArray()
-                    )
-                } catch (e: Exception) {
-                    when (e) {
-                        // 전송이 안된거니깐 재시도
-                        is RedisTimeoutException, is RedisConnectionException -> {
-                            logger.error { "Redis 네트워크 에러 발생, ErrorLog 저장 실시" }
-                            errorLogRepository.saveErrorLog(
-                                newRequestKey, ErrorLogType.STOCK_CHANGE, errorLog.content
-                            )
-                        }
+            try {
+                // Redis 상태 확인 -> 예외 발생시 이후에도 예외가 계속될 수 있다 판단하여 Job 자체를 실패 처리
+                if (redisStockRepository.hasRequestKey(requestKey)) {
+                    // ✅ 이미 처리됨 - 성공으로 간주
+                    logger.info { "이미 Redis에 존재: $requestKey" }
+                    errorLogRepository.setExecuted(requestKey)
+                    return@forEach
+                }
 
-                        else -> {
-                            logger.error(e) { "예외 발생 심각한지 확인 바람" }
-                        }
+                // 재시도 실행
+                redisStockRepository.updateStocks(
+                    requestKey = requestKey, stockChanges = errorLog.content.toTypedArray()
+                )
+
+                errorLogRepository.setExecuted(requestKey)
+                logger.info { "재시도 성공: $requestKey" }
+
+            } catch (e: Exception) {
+                when (e) {
+                    // 네트워크 장애 - 다음 스케줄에서 재시도
+                    is RedisTimeoutException, is RedisConnectionException -> {
+                        logger.warn { "네트워크 장애로 재시도 대기: $requestKey" }
+                    }
+
+                    // 기타 Redis 예외 - 성공 처리
+                    is RedisException -> {
+                        logger.info { "Redis 예외지만 성공 처리: $requestKey - ${e.message}" }
+                        errorLogRepository.setExecuted(requestKey)
+                    }
+
+                    // 예상치 못한 예외 - 성공 처리 (무한 재시도 방지)
+                    else -> {
+                        logger.error(e) { "예상치 못한 예외, 성공 처리: $requestKey" }
+                        errorLogRepository.setExecuted(requestKey)
                     }
                 }
             }

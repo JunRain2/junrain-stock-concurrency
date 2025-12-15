@@ -2,7 +2,10 @@ package com.example.demo.batch.scheduler
 
 import com.example.demo.batch.job.StockConsistencyBatchJob
 import jakarta.annotation.PostConstruct
-import org.quartz.*
+import org.quartz.JobBuilder
+import org.quartz.Scheduler
+import org.quartz.SimpleScheduleBuilder
+import org.quartz.TriggerBuilder
 import org.springframework.stereotype.Component
 
 @Component
@@ -25,7 +28,6 @@ class StockConsistencyBatchScheduler(
             )
             .build()
 
-
-        scheduler.scheduleJob(jobDetail ,trigger)
+        scheduler.scheduleJob(jobDetail, trigger)
     }
 }

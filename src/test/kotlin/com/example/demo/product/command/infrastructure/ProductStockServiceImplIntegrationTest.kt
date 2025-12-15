@@ -351,7 +351,6 @@ class ProductStockServiceImplIntegrationTest {
             "SELECT * FROM exception_logs WHERE reason = ? AND is_executed = false", "STOCK_CHANGE"
         )
         assertTrue(errorLogsBeforeBatch.isNotEmpty(), "에러 로그가 저장되어야 함")
-        println("배치 실행 전 에러 로그 개수: ${errorLogsBeforeBatch.size}")
 
         // Redis 연결 복구
         redisProxy.enable()
@@ -378,12 +377,10 @@ class ProductStockServiceImplIntegrationTest {
         assertEquals(
             initialStock + cancelQuantity, finalStock, "배치 작업으로 cancelReservation이 실행되어 재고가 증가해야 함"
         )
-
-        println("배치 실행 후 Redis 재고: $finalStock (예상: ${initialStock + cancelQuantity})")
     }
 
     @Test
-    fun `배치 작업 실행 중 Redis 장애가 다시 발생하면 새로운 에러 로그가 저장되어야 한다`() {
+    fun `배치 작업 실행 중 Redis 장애가 다시 발생하면 여전히 is_executed = false 상태여야 한다`() {
         // given
         val productId = 1L
         val initialStock = 100L
@@ -417,19 +414,19 @@ class ProductStockServiceImplIntegrationTest {
         stockConsistencyBatchJob.execute(mockContext)
 
         // then
-        // 1. 첫 번째 에러 로그는 실행 완료 처리되어야 함
+        // 1. 네트워크 장애 시 setExecuted가 호출되지 않으므로 여전히 is_executed = false 상태
+        val stillPendingLogs = jdbcTemplate.queryForList(
+            "SELECT * FROM exception_logs WHERE reason = ? AND is_executed = false", "STOCK_CHANGE"
+        )
+        assertEquals(1, stillPendingLogs.size, "네트워크 장애로 인해 재시도 대기 상태로 유지되어야 함")
+
+        // 2. 실행 완료 처리된 로그는 없어야 함 (네트워크 장애는 다음 스케줄에서 재시도)
         val executedLogs = jdbcTemplate.queryForList(
             "SELECT * FROM exception_logs WHERE reason = ? AND is_executed = true", "STOCK_CHANGE"
         )
-        assertTrue(executedLogs.isNotEmpty(), "첫 번째 에러 로그가 실행 완료 처리되어야 함")
+        assertEquals(0, executedLogs.size, "네트워크 장애 시에는 성공 처리하지 않고 다음 스케줄에서 재시도해야 함")
 
-        // 2. 배치 재시도 실패로 새로운 에러 로그가 저장되어야 함
-        val newErrorLogs = jdbcTemplate.queryForList(
-            "SELECT * FROM exception_logs WHERE reason = ? AND is_executed = false", "STOCK_CHANGE"
-        )
-        assertTrue(newErrorLogs.isNotEmpty(), "배치 재시도 실패로 새로운 에러 로그가 저장되어야 함")
-
-        println("실행 완료된 에러 로그: ${executedLogs.size}, 새로 생성된 에러 로그: ${newErrorLogs.size}")
+        println("재시도 대기 중인 에러 로그: ${stillPendingLogs.size}, 실행 완료된 로그: ${executedLogs.size}")
 
         // 정리 - Redis 연결 복구
         redisProxy.enable()

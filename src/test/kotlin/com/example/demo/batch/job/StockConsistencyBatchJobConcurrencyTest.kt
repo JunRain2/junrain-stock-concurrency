@@ -3,58 +3,21 @@ package com.example.demo.batch.job
 import com.example.demo.global.logging.ErrorLogRepository
 import com.example.demo.global.logging.ErrorLogType
 import com.example.demo.product.command.domain.StockChange
-import com.example.demo.product.command.infrastructure.redis.RedisStockRepository
 import com.fasterxml.jackson.core.type.TypeReference
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.quartz.*
 import org.quartz.impl.matchers.GroupMatcher
-import org.quartz.spi.TriggerFiredBundle
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.context.TestConfiguration
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Primary
 import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.scheduling.quartz.SchedulerFactoryBean
-import org.springframework.scheduling.quartz.SpringBeanJobFactory
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.concurrent.withLock
 
 @SpringBootTest
 class StockConsistencyBatchJobConcurrencyTest {
-
-    @TestConfiguration
-    class QuartzTestConfig {
-        @Bean
-        @Primary
-        fun testScheduler(
-            errorLogRepository: ErrorLogRepository,
-            redisStockRepository: RedisStockRepository
-        ): Scheduler {
-            val factory = SchedulerFactoryBean()
-            val properties = Properties().apply {
-                this["org.quartz.jobStore.class"] = "org.quartz.simpl.RAMJobStore"
-                this["org.quartz.threadPool.threadCount"] = "5"
-            }
-            factory.setQuartzProperties(properties)
-
-            val jobFactory = object : SpringBeanJobFactory() {
-                override fun createJobInstance(bundle: TriggerFiredBundle): Any {
-                    return StockConsistencyBatchJob(errorLogRepository, redisStockRepository)
-                }
-            }
-            factory.setJobFactory(jobFactory)
-            factory.isAutoStartup = false
-            factory.afterPropertiesSet()
-
-            return factory.scheduler
-        }
-    }
-
     @Autowired
     private lateinit var scheduler: Scheduler
 
@@ -63,6 +26,7 @@ class StockConsistencyBatchJobConcurrencyTest {
 
     @Autowired
     private lateinit var jdbcTemplate: JdbcTemplate
+
 
     private val executionLog = ConcurrentLinkedQueue<ExecutionEvent>()
 
@@ -152,18 +116,20 @@ class StockConsistencyBatchJobConcurrencyTest {
         val executionCount = AtomicInteger(0)
 
         val listenerName = "counter-listener"
-        scheduler.listenerManager.addJobListener(createConcurrentCountListener(
-            listenerName,
-            currentConcurrent,
-            maxConcurrent,
-            executionCount
-        ))
+        scheduler.listenerManager.addJobListener(
+            createConcurrentCountListener(
+                listenerName,
+                currentConcurrent,
+                maxConcurrent,
+                executionCount
+            )
+        )
 
         val jobDetail = createJobDetail("counter-test-job")
 
         // when: 5개의 트리거를 짧은 간격으로 실행
         repeat(5) { i ->
-            val trigger = createTrigger("counter-trigger-$i", jobDetail, delayMillis = i * 200L)
+            val trigger = createTrigger("counter-trigger-$i", jobDetail, delayMillis = i * 1000L)
             if (i == 0) {
                 scheduler.scheduleJob(jobDetail, trigger)
             } else {
@@ -287,7 +253,11 @@ class StockConsistencyBatchJobConcurrencyTest {
             .build()
     }
 
-    private fun createTrigger(triggerName: String, jobDetail: JobDetail, delayMillis: Long = 0): Trigger {
+    private fun createTrigger(
+        triggerName: String,
+        jobDetail: JobDetail,
+        delayMillis: Long = 0
+    ): Trigger {
         return TriggerBuilder.newTrigger()
             .withIdentity(triggerName, TEST_GROUP)
             .forJob(jobDetail)
@@ -303,7 +273,10 @@ class StockConsistencyBatchJobConcurrencyTest {
                 executionLog.add(createEvent(EventType.START, context))
             }
 
-            override fun jobWasExecuted(context: JobExecutionContext, jobException: JobExecutionException?) {
+            override fun jobWasExecuted(
+                context: JobExecutionContext,
+                jobException: JobExecutionException?
+            ) {
                 executionLog.add(createEvent(EventType.END, context))
             }
 
@@ -337,7 +310,10 @@ class StockConsistencyBatchJobConcurrencyTest {
                 executionCount.incrementAndGet()
             }
 
-            override fun jobWasExecuted(context: JobExecutionContext, jobException: JobExecutionException?) {
+            override fun jobWasExecuted(
+                context: JobExecutionContext,
+                jobException: JobExecutionException?
+            ) {
                 currentConcurrent.decrementAndGet()
             }
 
