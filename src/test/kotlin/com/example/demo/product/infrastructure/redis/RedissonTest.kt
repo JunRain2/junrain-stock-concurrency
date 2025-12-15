@@ -1,6 +1,6 @@
 package com.example.demo.product.infrastructure.redis
 
-import com.example.demo.common.RedisTestContainersConfig.Companion.redisProxy
+import com.example.demo.config.RedisTestContainersConfig.Companion.redisProxy
 import eu.rekawek.toxiproxy.model.ToxicDirection
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.junit.jupiter.api.BeforeEach
@@ -195,5 +195,15 @@ class RedissonTest @Autowired constructor(
         assertThrows<RedisException> {
             redissonClient.getAtomicLong(key).get()
         }
+    }
+
+    @Test
+    fun `RedisConnectionTime이 두 번 터지면 알 수 없는 예외가 발생한다`() {
+        val key = "product:1"
+
+        redisProxy.disable()
+        assertThrows<RedisConnectionException> { redissonClient.getBucket<Long>(key).set(10) }
+        assertThrows<RedisConnectionException> { redissonClient.getBucket<Long>(key).set(10) }
+        redisProxy.enable()
     }
 }

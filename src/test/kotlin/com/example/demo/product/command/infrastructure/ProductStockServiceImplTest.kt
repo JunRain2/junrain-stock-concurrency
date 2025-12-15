@@ -1,6 +1,6 @@
 package com.example.demo.product.command.infrastructure
 
-import com.example.demo.global.contract.InfraHandledException
+import com.example.demo.global.contract.InfraException
 import com.example.demo.global.logging.ErrorLogRepository
 import com.example.demo.global.logging.ErrorLogType
 import com.example.demo.product.command.domain.StockChange
@@ -85,7 +85,7 @@ class ProductStockServiceImplTest {
         whenever(redisStockRepository.updateStocks(any(), any())).thenThrow(exception)
 
         // when & then
-        val thrown = assertThrows<InfraHandledException> {
+        val thrown = assertThrows<InfraException> {
             productStockService.reserve(*changes)
         }
 
@@ -102,7 +102,7 @@ class ProductStockServiceImplTest {
         whenever(redisStockRepository.updateStocks(any(), any())).thenThrow(exception)
 
         // when & then
-        val thrown = assertThrows<InfraHandledException> {
+        val thrown = assertThrows<InfraException> {
             productStockService.reserve(*changes)
         }
 
@@ -165,7 +165,7 @@ class ProductStockServiceImplTest {
         whenever(redisStockRepository.updateStocks(any(), any())).thenThrow(exception)
 
         // when & then
-        val thrown = assertThrows<InfraHandledException> {
+        val thrown = assertThrows<InfraException> {
             productStockService.cancelReservation(*changes)
         }
 
@@ -189,7 +189,7 @@ class ProductStockServiceImplTest {
         whenever(redisStockRepository.updateStocks(any(), any())).thenThrow(exception)
 
         // when & then
-        val thrown = assertThrows<InfraHandledException> {
+        val thrown = assertThrows<InfraException> {
             productStockService.cancelReservation(*changes)
         }
 

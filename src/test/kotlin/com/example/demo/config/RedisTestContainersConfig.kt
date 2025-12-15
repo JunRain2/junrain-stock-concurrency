@@ -1,9 +1,9 @@
-package com.example.demo.common
+package com.example.demo.config
 
-import com.example.demo.common.ToxiproxyTestContainerConfig.Companion.TOXI_REDIS_PORT
-import com.example.demo.common.ToxiproxyTestContainerConfig.Companion.toxiNetwork
-import com.example.demo.common.ToxiproxyTestContainerConfig.Companion.toxiproxy
-import com.example.demo.common.ToxiproxyTestContainerConfig.Companion.toxiproxyClient
+import com.example.demo.config.ToxiproxyTestContainerConfig.Companion.TOXI_REDIS_PORT
+import com.example.demo.config.ToxiproxyTestContainerConfig.Companion.toxiNetwork
+import com.example.demo.config.ToxiproxyTestContainerConfig.Companion.toxiproxy
+import com.example.demo.config.ToxiproxyTestContainerConfig.Companion.toxiproxyClient
 import org.springframework.context.annotation.Configuration
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName

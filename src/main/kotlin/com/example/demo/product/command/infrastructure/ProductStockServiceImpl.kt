@@ -1,6 +1,6 @@
 package com.example.demo.product.command.infrastructure
 
-import com.example.demo.global.contract.InfraHandledException
+import com.example.demo.global.contract.InfraException
 import com.example.demo.global.logging.ErrorLogRepository
 import com.example.demo.global.logging.ErrorLogType
 import com.example.demo.product.command.domain.ProductStockService
@@ -11,6 +11,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.redisson.client.RedisConnectionException
+import org.redisson.client.RedisException
 import org.redisson.client.RedisTimeoutException
 import org.springframework.stereotype.Service
 import java.util.*
@@ -31,24 +32,37 @@ class ProductStockServiceImpl(
         try {
             redisStockRepository.updateStocks(requestKey, *minusStocks)
         } catch (e: Exception) {
-            when (e) {
-                // Redis에 도달하지 못했기에 롤백 필요 X
-                is RedisConnectionException -> {
-                    logger.error { "RedisConnectionException 발생 : ${e.message}" }
-                    throw InfraHandledException(e)
-                }
-                // Redis에 도달했는지 안했는지 알 수 없기에 추가로직이 필요
-                is RedisTimeoutException -> {
-                    logger.error { "RedisTimeoutException 발생 데이터베이스에 저장 : ${e.message}" }
-                    applicationScope.launch {
-                        saveRedisStockChangeException(requestKey, *minusStocks)
+            if (e is RedisException) {
+                when (e) {
+                    // Redis에 도달하지 못했기에 롤백 필요 X
+                    is RedisConnectionException -> {
+                        logger.error { "RedisConnectionException 발생 : ${e.message}" }
                     }
-                    throw InfraHandledException(e)
+                    // Redis에 도달했는지 안했는지 알 수 없기에 추가로직이 필요
+                    is RedisTimeoutException -> {
+                        logger.error { "RedisTimeoutException 발생 데이터베이스에 저장 : ${e.message}" }
+                        applicationScope.launch {
+                            saveRedisStockChangeException(requestKey, *changes)
+                        }
+                    }
+                    // 그 외, 인프라 예외 -> 롤백 처리함
+                    else -> {
+                        logger.error(e) { "Redis 예외 발생" }
+                        applicationScope.launch {
+                            increaseRedisStock(*changes)
+                        }
+                    }
                 }
+                throw InfraException(e)
             }
             throw e
         }
+    }
 
+    private fun saveRedisStockChangeException(requestKey: String, vararg changes: StockChange) {
+        errorLogRepository.saveErrorLog(
+            requestKey = requestKey, reason = ErrorLogType.STOCK_CHANGE, content = changes.toList()
+        )
     }
 
     override fun cancelReservation(vararg changes: StockChange) {
@@ -67,7 +81,7 @@ class ProductStockServiceImpl(
                     applicationScope.launch {
                         saveRedisStockChangeException(requestKey, *changes)
                     }
-                    throw InfraHandledException(e)
+                    throw InfraException(e)
                 }
             }
             throw e
@@ -94,11 +108,5 @@ class ProductStockServiceImpl(
         applicationScope.launch {
             increaseRedisStock(*changes)
         }
-    }
-
-    private fun saveRedisStockChangeException(requestKey: String, vararg changes: StockChange) {
-        errorLogRepository.saveErrorLog(
-            requestKey = requestKey, reason = ErrorLogType.STOCK_CHANGE, content = changes.toList()
-        )
     }
 }

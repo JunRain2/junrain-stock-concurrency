@@ -51,6 +51,7 @@ class StockConsistencyBatchJob(
                     when (e) {
                         // 전송이 안된거니깐 재시도
                         is RedisTimeoutException, is RedisConnectionException -> {
+                            logger.error { "Redis 네트워크 에러 발생, ErrorLog 저장 실시" }
                             errorLogRepository.saveErrorLog(
                                 newRequestKey, ErrorLogType.STOCK_CHANGE, errorLog.content
                             )

@@ -1,4 +1,4 @@
-package com.example.demo.common
+package com.example.demo.config
 
 import eu.rekawek.toxiproxy.ToxiproxyClient
 import org.springframework.context.annotation.Configuration

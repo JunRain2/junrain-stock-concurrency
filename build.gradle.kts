@@ -71,4 +71,5 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    systemProperty("spring.profiles.active", "test") // test 설정을 사용
 }
