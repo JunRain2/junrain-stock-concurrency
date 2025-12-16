@@ -20,7 +20,7 @@ private val logger = KotlinLogging.logger {}
 class JdbcProductRepository(
     private val jdbcTemplate: JdbcTemplate,
     @param:Value("\${bulk-insert.chunk-size}") private val chunkSize: Int,
-    @param:Value("\${bulk-insert.retry-milliseconds}") private val retryDelays: List<Long>
+    @param:Value("\${bulk-insert.retry-milliseconds}") private val retryDelays: List<Long> // 백오프 지수를 구현해보기
 ) {
     fun bulkInsert(products: List<Product>): BatchResult<Product> {
         val success = mutableListOf<Product>()

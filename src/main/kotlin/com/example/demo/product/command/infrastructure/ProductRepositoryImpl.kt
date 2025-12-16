@@ -3,14 +3,18 @@ package com.example.demo.product.command.infrastructure
 import com.example.demo.global.contract.BatchResult
 import com.example.demo.product.command.domain.Product
 import com.example.demo.product.command.domain.ProductRepository
+import com.example.demo.product.command.domain.StockChange
 import com.example.demo.product.command.infrastructure.mysql.JdbcProductRepository
 import com.example.demo.product.command.infrastructure.mysql.JpaProductRepository
 import com.example.demo.product.command.infrastructure.redis.RedisStockRepository
 import com.example.demo.product.exception.ProductDuplicateCodeException
 import com.example.demo.product.exception.ProductNotFoundException
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Repository
+import java.util.*
 
 private val logger = KotlinLogging.logger { }
 
@@ -19,6 +23,7 @@ class ProductRepositoryImpl(
     private val jpaProductRepository: JpaProductRepository,
     private val jdbcProductRepository: JdbcProductRepository,
     private val redisStockRepository: RedisStockRepository,
+    private val applicationScope: CoroutineScope
 ) : ProductRepository {
     override fun save(product: Product): Product {
         val product = try {
@@ -34,8 +39,17 @@ class ProductRepositoryImpl(
     }
 
     override fun bulkInsert(products: List<Product>): BatchResult<Product> {
-        // TODO 레디스에 값을 추가하는 로직 필요
-        return jdbcProductRepository.bulkInsert(products)
+        val result = jdbcProductRepository.bulkInsert(products)
+
+        applicationScope.launch {
+            result.succeeded.chunked(redisStockRepository.maxSize).forEach { chunked ->
+                val changeProducts = chunked.map { StockChange(it.id, it.stock) }
+                val requestKey = UUID.randomUUID().toString()
+                redisStockRepository.increaseStock(requestKey, *changeProducts.toTypedArray())
+            }
+        }
+
+        return result
     }
 
     override fun findById(productId: Long): Product {

@@ -41,20 +41,18 @@ class StockConsistencyBatchJob(
             try {
                 // Redis 상태 확인 -> 예외 발생시 이후에도 예외가 계속될 수 있다 판단하여 Job 자체를 실패 처리
                 if (redisStockRepository.hasRequestKey(requestKey)) {
-                    // ✅ 이미 처리됨 - 성공으로 간주
                     logger.info { "이미 Redis에 존재: $requestKey" }
                     errorLogRepository.setExecuted(requestKey)
                     return@forEach
                 }
 
                 // 재시도 실행
-                redisStockRepository.updateStocks(
+                redisStockRepository.increaseStock(
                     requestKey = requestKey, stockChanges = errorLog.content.toTypedArray()
                 )
 
                 errorLogRepository.setExecuted(requestKey)
                 logger.info { "재시도 성공: $requestKey" }
-
             } catch (e: Exception) {
                 when (e) {
                     // 네트워크 장애 - 다음 스케줄에서 재시도
