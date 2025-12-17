@@ -8,7 +8,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Counter } from 'k6/metrics';
-import { errorRate, purchaseDuration, extractMetrics, logMetrics, getCommonStyles, generateMetricCards } from './common.js';
+import { errorRate, purchaseDuration, extractMetrics, logMetrics, getCommonStyles, generateMetricCards } from '../common/common.js';
 
 const successCount = new Counter('success_count');
 const stockErrorCount = new Counter('stock_error_count');
@@ -105,9 +105,9 @@ export default function () {
 
 export function handleSummary(data) {
   const metrics = extractMetrics(data);
-  const successCnt = data.metrics.success_count?.values || {};
-  const stockErrorCnt = data.metrics.stock_error_count?.values || {};
-  const otherErrorCnt = data.metrics.other_error_count?.values || {};
+  const successCnt = (data.metrics.success_count && data.metrics.success_count.values) || {};
+  const stockErrorCnt = (data.metrics.stock_error_count && data.metrics.stock_error_count.values) || {};
+  const otherErrorCnt = (data.metrics.other_error_count && data.metrics.other_error_count.values) || {};
 
   logMetrics('Step 4: 재고 소진 시나리오 테스트 결과', metrics);
 
@@ -117,8 +117,8 @@ export function handleSummary(data) {
   console.log('  기타 에러: ' + (otherErrorCnt.count || 0) + '건\n');
 
   return {
-    'k6-tests/results/step4-stock-depletion-summary.json': JSON.stringify(data, null, 2),
-    'k6-tests/results/step4-stock-depletion-summary.html': htmlReport(metrics),
+    'k6-tests/results/purchase/step4-stock-depletion-summary.json': JSON.stringify(data, null, 2),
+    'k6-tests/results/purchase/step4-stock-depletion-summary.html': htmlReport(metrics),
   };
 }
 

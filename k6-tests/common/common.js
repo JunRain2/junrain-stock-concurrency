@@ -38,9 +38,9 @@ export function getCommonStyles(themeColor = '#4CAF50') {
 export function extractMetrics(data) {
   const metrics = data.metrics;
   return {
-    httpReqs: metrics.http_reqs?.values || {},
-    httpReqDuration: metrics.http_req_duration?.values || {},
-    errors: metrics.errors?.values || {},
+    httpReqs: (metrics.http_reqs && metrics.http_reqs.values) || {},
+    httpReqDuration: (metrics.http_req_duration && metrics.http_req_duration.values) || {},
+    errors: (metrics.errors && metrics.errors.values) || {},
   };
 }
 

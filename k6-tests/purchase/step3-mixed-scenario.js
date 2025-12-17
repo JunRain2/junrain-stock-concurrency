@@ -9,7 +9,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend, Counter } from 'k6/metrics';
-import { errorRate, purchaseDuration, extractMetrics, logMetrics, getCommonStyles, generateMetricCards } from './common.js';
+import { errorRate, purchaseDuration, extractMetrics, logMetrics, getCommonStyles, generateMetricCards } from '../common/common.js';
 
 const cartSize = new Trend('cart_size');
 const hotItemRequests = new Counter('hot_item_requests');
@@ -191,9 +191,9 @@ export function hotItemUser() {
 
 export function handleSummary(data) {
   const metrics = extractMetrics(data);
-  const cartSizeMetric = data.metrics.cart_size?.values || {};
-  const hotItemReqs = data.metrics.hot_item_requests?.values || {};
-  const normalItemReqs = data.metrics.normal_item_requests?.values || {};
+  const cartSizeMetric = (data.metrics.cart_size && data.metrics.cart_size.values) || {};
+  const hotItemReqs = (data.metrics.hot_item_requests && data.metrics.hot_item_requests.values) || {};
+  const normalItemReqs = (data.metrics.normal_item_requests && data.metrics.normal_item_requests.values) || {};
 
   logMetrics('Step 3: 혼합 시나리오 테스트 결과', metrics);
 
@@ -203,8 +203,8 @@ export function handleSummary(data) {
   console.log('  일반 상품 요청: ' + (normalItemReqs.count || 0) + '회\n');
 
   return {
-    'k6-tests/results/step3-mixed-scenario-summary.json': JSON.stringify(data, null, 2),
-    'k6-tests/results/step3-mixed-scenario-summary.html': htmlReport(metrics),
+    'k6-tests/results/purchase/step3-mixed-scenario-summary.json': JSON.stringify(data, null, 2),
+    'k6-tests/results/purchase/step3-mixed-scenario-summary.html': htmlReport(metrics),
   };
 }
 

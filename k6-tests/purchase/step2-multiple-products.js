@@ -1,22 +1,25 @@
 /**
- * Step 1: 단일 상품 (경합 최대)
- * - 모든 요청이 같은 상품(ID=1)을 구매
- * - Pessimistic Lock의 최악 케이스 테스트
- * - 목표: 순차 처리 성능 및 Lock 대기 시간 측정
+ * Step 2: 다중 상품 (경합 분산)
+ * - 요청마다 다른 상품을 구매 (ID=1~10 랜덤)
+ * - Lock 경합이 분산됨
+ * - ORDER BY로 인한 데드락 방지 효과 측정
  */
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { errorRate, purchaseDuration, extractMetrics, logMetrics, getCommonStyles, generateMetricCards } from './common.js';
+import { Counter } from 'k6/metrics';
+import { errorRate, purchaseDuration, extractMetrics, logMetrics, getCommonStyles, generateMetricCards } from '../common/common.js';
+
+const productDistribution = new Counter('product_distribution');
 
 // 테스트 설정
 export const options = {
   summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
   scenarios: {
-    // 시나리오 1: 낮은 부하 (Baseline)
+    // 시나리오 1: 낮은 부하
     low_load: {
       executor: 'constant-vus',
-      vus: 10,
+      vus: 20,
       duration: '30s',
       startTime: '0s',
       tags: { scenario: 'low_load' },
@@ -24,7 +27,7 @@ export const options = {
     // 시나리오 2: 중간 부하
     medium_load: {
       executor: 'constant-vus',
-      vus: 50,
+      vus: 100,
       duration: '30s',
       startTime: '35s',
       tags: { scenario: 'medium_load' },
@@ -32,42 +35,37 @@ export const options = {
     // 시나리오 3: 높은 부하
     high_load: {
       executor: 'constant-vus',
-      vus: 100,
+      vus: 200,
       duration: '30s',
       startTime: '70s',
       tags: { scenario: 'high_load' },
     },
-    // 시나리오 4: 점진적 증가 (Ramp-up)
-    ramp_up: {
-      executor: 'ramping-vus',
-      startVUs: 0,
-      stages: [
-        { duration: '1m', target: 100 },
-        { duration: '2m', target: 100 },
-        { duration: '1m', target: 200 },
-        { duration: '2m', target: 200 },
-        { duration: '1m', target: 0 },
-      ],
+    // 시나리오 4: 매우 높은 부하 (병렬 처리 한계 테스트)
+    very_high_load: {
+      executor: 'constant-vus',
+      vus: 500,
+      duration: '30s',
       startTime: '105s',
-      tags: { scenario: 'ramp_up' },
+      tags: { scenario: 'very_high_load' },
     },
   },
   thresholds: {
-    http_req_duration: ['p(95)<5000', 'p(99)<10000'], // 95%는 5초 미만, 99%는 10초 미만
-    http_req_failed: ['rate<0.05'], // 실패율 5% 미만
+    http_req_duration: ['p(95)<3000', 'p(99)<5000'], // 단일 상품보다 빠를 것으로 예상
+    http_req_failed: ['rate<0.05'],
     errors: ['rate<0.05'],
   },
 };
 
-// 환경 변수
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 
 export default function () {
-  // 단일 상품 (ID=1) 구매 요청
+  // 1~10 중 랜덤 상품 선택 (경합 분산)
+  const productId = Math.floor(Math.random() * 10) + 1;
+
   const payload = JSON.stringify({
     items: [
       {
-        productId: 1, // 항상 같은 상품 -> 최대 경합
+        productId: productId,
         quantity: 1,
       },
     ],
@@ -77,14 +75,16 @@ export default function () {
     headers: {
       'Content-Type': 'application/json',
     },
-    tags: { name: 'PurchaseSingleProduct' },
+    tags: {
+      name: 'PurchaseMultipleProducts',
+      productId: productId.toString(),
+    },
   };
 
   const startTime = Date.now();
   const response = http.post(`${BASE_URL}/api/v1/products/purchase`, payload, params);
   const duration = Date.now() - startTime;
 
-  // 응답 검증
   const success = check(response, {
     'status is 200': (r) => r.status === 200,
     'response has data': (r) => {
@@ -97,21 +97,20 @@ export default function () {
     },
   });
 
-  // 메트릭 기록
   errorRate.add(!success);
   purchaseDuration.add(duration);
+  productDistribution.add(1, { productId: productId.toString() });
 
-  // Think time (실제 사용자 행동 시뮬레이션)
-  sleep(Math.random() * 2); // 0~2초 랜덤 대기
+  sleep(Math.random() * 2);
 }
 
 export function handleSummary(data) {
   const metrics = extractMetrics(data);
-  logMetrics('Step 1: 단일 상품 경합 테스트 결과', metrics);
+  logMetrics('Step 2: 다중 상품 분산 테스트 결과', metrics);
 
   return {
-    'k6-tests/results/step1-single-product-summary.json': JSON.stringify(data, null, 2),
-    'k6-tests/results/step1-single-product-summary.html': htmlReport(metrics),
+    'k6-tests/results/purchase/step2-multiple-products-summary.json': JSON.stringify(data, null, 2),
+    'k6-tests/results/purchase/step2-multiple-products-summary.html': htmlReport(metrics),
   };
 }
 
@@ -120,13 +119,13 @@ function htmlReport(metrics) {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Step 1: 단일 상품 경합 테스트 결과</title>
-    <style>${getCommonStyles('#4CAF50')}</style>
+    <title>Step 2: 다중 상품 분산 테스트 결과</title>
+    <style>${getCommonStyles('#2196F3')}</style>
 </head>
 <body>
     <div class="container">
-        <h1>Step 1: 단일 상품 경합 테스트 결과</h1>
-        <p>동일한 상품에 대한 동시 구매 요청으로 최대 Lock 경합 상황 테스트</p>
+        <h1>Step 2: 다중 상품 분산 테스트 결과</h1>
+        <p>10개 상품에 대한 랜덤 분산 요청으로 Lock 경합 최소화 테스트</p>
         <h2>전체 성능 메트릭</h2>
         <div class="metric-grid">${generateMetricCards(metrics)}</div>
     </div>

@@ -23,8 +23,8 @@ echo "프로젝트 루트: $PROJECT_ROOT"
 
 # 환경 변수
 BASE_URL="${BASE_URL:-http://localhost:8080}"
-RESULTS_DIR="k6-tests/results"
-DB_RESET_SQL="k6-tests/test-data.sql"
+RESULTS_DIR="k6-tests/results/purchase"
+DB_RESET_SQL="k6-tests/purchase/test-data.sql"
 
 # MySQL 접속 정보
 MYSQL_HOST="${MYSQL_HOST:-localhost}"
@@ -49,18 +49,23 @@ else
     exit 1
 fi
 
-# Redis 초기화 함수
+# Redis 초기화 함수 (구매 API용 - 재고 데이터 설정)
 reset_redis() {
     echo -e "${YELLOW}Redis 재고 초기화 중...${NC}"
 
-    # init-redis-stock.sh 실행
-    REDIS_HOST="${REDIS_HOST}" REDIS_PORT="${REDIS_PORT}" bash k6-tests/init-redis-stock.sh > /dev/null 2>&1
+    # 1. 먼저 Redis를 완전히 비움
+    REDIS_HOST="${REDIS_HOST}" REDIS_PORT="${REDIS_PORT}" bash k6-tests/common/clear-redis.sh > /dev/null 2>&1
+
+    # 2. 재고 데이터 설정
+    REDIS_HOST="${REDIS_HOST}" REDIS_PORT="${REDIS_PORT}" bash k6-tests/purchase/init-redis-stock.sh > /dev/null 2>&1
 
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ Redis 재고 초기화 완료${NC}"
     else
         echo -e "${RED}✗ Redis 재고 초기화 실패${NC}"
-        echo -e "${YELLOW}다음 명령으로 수동 실행: bash k6-tests/init-redis-stock.sh${NC}\n"
+        echo -e "${YELLOW}다음 명령으로 수동 실행:${NC}"
+        echo -e "${YELLOW}  1. bash k6-tests/common/clear-redis.sh${NC}"
+        echo -e "${YELLOW}  2. bash k6-tests/purchase/init-redis-stock.sh${NC}\n"
         exit 1
     fi
 }
@@ -100,7 +105,7 @@ reset_database
 echo -e "${YELLOW}[3/9] Step 1 실행 중... (약 7분 소요)${NC}"
 k6 run --env BASE_URL="${BASE_URL}" \
     --out json="${RESULTS_DIR}/step1-result.json" \
-    k6-tests/step1-single-product.js || echo -e "${YELLOW}⚠️  Step 1: Threshold 경고 발생 (계속 진행)${NC}"
+    k6-tests/purchase/step1-single-product.js || echo -e "${YELLOW}⚠️  Step 1: Threshold 경고 발생 (계속 진행)${NC}"
 
 echo -e "${GREEN}✓ Step 1 완료${NC}\n"
 sleep 5
@@ -112,7 +117,7 @@ reset_database
 echo -e "${YELLOW}[5/9] Step 2 실행 중... (약 2.5분 소요)${NC}"
 k6 run --env BASE_URL="${BASE_URL}" \
     --out json="${RESULTS_DIR}/step2-result.json" \
-    k6-tests/step2-multiple-products.js || echo -e "${YELLOW}⚠️  Step 2: Threshold 경고 발생 (계속 진행)${NC}"
+    k6-tests/purchase/step2-multiple-products.js || echo -e "${YELLOW}⚠️  Step 2: Threshold 경고 발생 (계속 진행)${NC}"
 
 echo -e "${GREEN}✓ Step 2 완료${NC}\n"
 sleep 5
@@ -124,7 +129,7 @@ reset_database
 echo -e "${YELLOW}[7/9] Step 3 실행 중... (약 16분 소요)${NC}"
 k6 run --env BASE_URL="${BASE_URL}" \
     --out json="${RESULTS_DIR}/step3-result.json" \
-    k6-tests/step3-mixed-scenario.js || echo -e "${YELLOW}⚠️  Step 3: Threshold 경고 발생 (계속 진행)${NC}"
+    k6-tests/purchase/step3-mixed-scenario.js || echo -e "${YELLOW}⚠️  Step 3: Threshold 경고 발생 (계속 진행)${NC}"
 
 echo -e "${GREEN}✓ Step 3 완료${NC}\n"
 sleep 5
@@ -136,7 +141,7 @@ reset_database
 echo -e "${YELLOW}[9/9] Step 4 실행 중... (약 7분 소요)${NC}"
 k6 run --env BASE_URL="${BASE_URL}" \
     --out json="${RESULTS_DIR}/step4-result.json" \
-    k6-tests/step4-stock-depletion.js || echo -e "${YELLOW}⚠️  Step 4: Threshold 경고 발생 (계속 진행)${NC}"
+    k6-tests/purchase/step4-stock-depletion.js || echo -e "${YELLOW}⚠️  Step 4: Threshold 경고 발생 (계속 진행)${NC}"
 
 echo -e "${GREEN}✓ Step 4 완료${NC}\n"
 

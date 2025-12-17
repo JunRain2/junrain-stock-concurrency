@@ -1,18 +1,38 @@
-# K6 동시성 제어 성능 테스트
+# K6 부하 테스트 모음
+
+API별로 정리된 K6 부하 테스트 스크립트 모음입니다.
 
 ## 📁 디렉토리 구조
 
 ```
 k6-tests/
-├── step1-single-product.js       # Step 1: 단일 상품 경합 테스트
-├── step2-multiple-products.js    # Step 2: 다중 상품 분산 테스트
-├── step3-mixed-scenario.js       # Step 3: 혼합 시나리오 테스트
-├── step4-stock-depletion.js      # Step 4: 재고 소진 테스트
-├── analyze.py                    # 결과 분석 스크립트 (Python)
-├── run-all-tests.sh              # 전체 테스트 자동 실행
-├── test-data.sql                 # 테스트용 데이터 (상품 10개, 각 재고 100,000)
-├── results/                      # 테스트 결과 저장 디렉토리
-└── README.md                     # 이 파일
+├── common/                          # 공통 유틸리티
+│   ├── common.js                    # 공통 메트릭, HTML 생성 함수
+│   └── clear-redis.sh               # Redis 완전 초기화 스크립트
+│
+├── purchase/                        # 상품 구매 API 테스트
+│   ├── step1-single-product.js      # Step 1: 단일 상품 경합 테스트
+│   ├── step2-multiple-products.js   # Step 2: 다중 상품 분산 테스트
+│   ├── step3-mixed-scenario.js      # Step 3: 혼합 시나리오 테스트
+│   ├── step4-stock-depletion.js     # Step 4: 재고 소진 테스트
+│   ├── test-data.sql                # 구매 테스트용 초기 데이터
+│   └── init-redis-stock.sh          # Redis 재고 초기화 스크립트
+│
+├── registration/                    # 상품 등록 API 테스트
+│   ├── phase1-baseline.js           # Phase 1: 기본 성능 측정
+│   ├── phase2-batch-optimization.js # Phase 2: 배치 크기 최적화
+│   ├── phase3-normal-concurrency.js # Phase 3: 일반 동시성
+│   ├── phase4-high-concurrency.js   # Phase 4: 높은 동시성
+│   └── test-data-registration.sql   # 등록 테스트용 초기 데이터
+│
+├── results/                         # 테스트 결과 저장 디렉토리
+│   ├── purchase/                    # 구매 API 테스트 결과
+│   └── registration/                # 등록 API 테스트 결과
+│
+├── run-all-tests.sh                 # 구매 API 전체 테스트 실행 스크립트
+├── run-registration-tests.sh        # 등록 API 전체 테스트 실행 스크립트
+├── analyze.py                       # 결과 분석 Python 스크립트
+└── README.md                        # 이 파일
 ```
 
 ## 🚀 빠른 시작
@@ -23,153 +43,124 @@ k6-tests/
 # K6 설치 (macOS)
 brew install k6
 
-# 테스트 데이터 삽입
-mysql -u root -p1234 foo < k6-tests/test-data.sql
-
 # 애플리케이션 실행
 ./gradlew bootRun
 ```
 
 ### 2. 테스트 실행
 
-**전체 테스트 한 번에 (권장):**
+#### 🛒 상품 구매 API 테스트
+
 ```bash
+# 테스트 데이터 삽입
+mysql -u root -p1234 foo < k6-tests/purchase/test-data.sql
+
+# 전체 테스트 실행 (약 32분 소요)
 ./k6-tests/run-all-tests.sh
+
+# 개별 테스트 실행
+k6 run --env BASE_URL=http://localhost:8080 k6-tests/purchase/step1-single-product.js
+k6 run --env BASE_URL=http://localhost:8080 k6-tests/purchase/step2-multiple-products.js
+k6 run --env BASE_URL=http://localhost:8080 k6-tests/purchase/step3-mixed-scenario.js
+k6 run --env BASE_URL=http://localhost:8080 k6-tests/purchase/step4-stock-depletion.js
 ```
 
-**개별 테스트:**
+#### 📝 상품 등록 API 테스트
+
 ```bash
-# Step 1: 단일 상품 경합 (약 7분)
-k6 run --out json=k6-tests/results/step1-result.json k6-tests/step1-single-product.js
+# 테스트 데이터 삽입 (Owner 생성)
+mysql -u root -p1234 foo < k6-tests/registration/test-data-registration.sql
 
-# Step 2: 다중 상품 분산 (약 2.5분)
-k6 run --out json=k6-tests/results/step2-result.json k6-tests/step2-multiple-products.js
+# 전체 테스트 실행 (약 35분 소요)
+./k6-tests/run-registration-tests.sh
 
-# Step 3: 혼합 시나리오 (약 16분)
-k6 run --out json=k6-tests/results/step3-result.json k6-tests/step3-mixed-scenario.js
-
-# Step 4: 재고 소진 (약 7분)
-k6 run --out json=k6-tests/results/step4-result.json k6-tests/step4-stock-depletion.js
+# 개별 테스트 실행
+k6 run --env BASE_URL=http://localhost:8080 --env OWNER_ID=1 k6-tests/registration/phase1-baseline.js
+k6 run --env BASE_URL=http://localhost:8080 --env OWNER_ID=1 k6-tests/registration/phase2-batch-optimization.js
+k6 run --env BASE_URL=http://localhost:8080 --env OWNER_ID=1 k6-tests/registration/phase3-normal-concurrency.js
+k6 run --env BASE_URL=http://localhost:8080 --env OWNER_ID=1 k6-tests/registration/phase4-high-concurrency.js
 ```
 
 ### 3. 결과 확인
 
-**HTML 리포트 (자동 생성됨):**
-```bash
-# 각 Step별 HTML 리포트가 자동으로 생성됩니다
-open k6-tests/results/step1-single-product-summary.html
-open k6-tests/results/step2-multiple-products-summary.html
-open k6-tests/results/step3-mixed-scenario-summary.html
-open k6-tests/results/step4-stock-depletion-summary.html
-```
+#### HTML 리포트
 
-**Python 분석 스크립트 (선택):**
 ```bash
-# 추가 분석이 필요한 경우
-python3 k6-tests/analyze.py k6-tests/results/step1-result.json
-python3 k6-tests/analyze.py k6-tests/results/step1-result.json --html --csv
+# 구매 API 테스트 결과
+open k6-tests/results/purchase/step1-single-product-summary.html
+open k6-tests/results/purchase/step2-multiple-products-summary.html
+open k6-tests/results/purchase/step3-mixed-scenario-summary.html
+open k6-tests/results/purchase/step4-stock-depletion-summary.html
+
+# 등록 API 테스트 결과
+open k6-tests/results/registration/phase1-baseline-summary.html
+open k6-tests/results/registration/phase2-batch-optimization-summary.html
+open k6-tests/results/registration/phase3-normal-concurrency-summary.html
+open k6-tests/results/registration/phase4-high-concurrency-summary.html
 ```
 
 ## 📊 테스트 시나리오
 
-### Step 1: 단일 상품 경합 (최악의 Lock 경합)
-- **목적**: Pessimistic Lock의 최악 케이스 성능 측정
-- **특징**: 모든 요청이 같은 상품(ID=1)을 구매
-- **재고**: 100,000개
-- **VU**: 10 → 50 → 100 → 200 (점진적 증가)
-- **소요 시간**: ~7분
-- **예상 소진**: ~450,000개 (재고 초과, 일부 에러 발생 예상)
-- **예상 결과**: 순차 처리로 인한 낮은 TPS, 높은 응답 시간, 재고 소진 후 에러율 증가
+### 🛒 상품 구매 API 테스트 (Pessimistic Lock)
 
-### Step 2: 다중 상품 분산 (Lock 경합 최소화)
-- **목적**: Lock 경합이 분산될 때의 성능 측정
-- **특징**: 각 요청이 1~10번 상품 중 랜덤 선택
-- **재고**: 각 100,000개
-- **VU**: 20 → 100 → 200 → 500
-- **소요 시간**: ~2.5분
-- **예상 소진**: 상품당 ~2,460개
-- **예상 결과**: Step 1보다 높은 TPS, 낮은 응답 시간
+| Step | 목적 | 특징 | VU | 소요시간 |
+|------|------|------|----|----|
+| **Step 1** | 최악의 Lock 경합 측정 | 모든 요청이 동일 상품(ID=1) 구매 | 10→200 | ~7분 |
+| **Step 2** | Lock 경합 분산 성능 | 1~10번 상품 중 랜덤 선택 | 20→500 | ~2.5분 |
+| **Step 3** | 실제 운영 환경 시뮬레이션 | Hot Item + 일반 트래픽 혼합 | 80~200 | ~16분 |
+| **Step 4** | 재고 소진 시나리오 | 초고강도 부하로 재고 소진 | 500→1500 | ~7분 |
 
-### Step 3: 혼합 시나리오 (실제 운영 환경)
-- **목적**: 실제 운영 환경 시뮬레이션
-- **특징**:
-  - Hot Item: 20% 요청이 인기 상품(ID=1) 집중
-  - 일반 트래픽: 80% 요청이 다양한 상품 구매
-  - 장바구니: 30% 확률로 여러 상품 동시 구매 (2~5개)
-  - 스파이크: 10분 시점에 갑작스런 트래픽 급증
-- **재고**: 각 100,000개
-- **VU**: 80~200 (15분간 지속)
-- **소요 시간**: ~16분
-- **예상 결과**: Hot Item은 높은 경합, 일반 상품은 분산 처리
+**주요 검증 사항:**
+- Pessimistic Lock 성능
+- 재고 동시성 제어
+- 데드락 방지
+- 에러 처리 (재고 부족 등)
 
-### Step 4: 재고 소진 테스트 (에러 처리 검증)
-- **목적**: 재고 소진 시나리오 및 에러 처리 검증
-- **특징**: 상품 ID=1에 초고강도 부하를 가해 재고 소진
-- **재고**: 100,000개
-- **VU**: 500 → 1000 → 1500 (최대 부하)
-- **소요 시간**: ~7분
-- **예상 소진**: 처음 2~3분 내 전체 소진
-- **예상 결과**:
-  - 성공 구매: ~100,000건
-  - 재고 부족 에러: ~200만건 (에러율 95%)
-  - 재고 소진 후 에러 처리 로직 검증
+### 📝 상품 등록 API 테스트 (Bulk Registration)
 
-## 📈 결과 해석
+| Phase | 목적 | 데이터 | VU | 소요시간 |
+|-------|------|--------|----|----|
+| **Phase 1** | 기준 성능 파악 | 1,000건 × 10회 | 1 | ~5분 |
+| **Phase 2** | 최적 배치 크기 결정 | 100/500/1K/5K/10K건 × 5회 | 1 | ~15분 |
+| **Phase 3** | 일반 다중 사용자 | 1,000건 연속 | 10 | 10분 |
+| **Phase 4** | 높은 부하 검증 | 5,000건 연속 | 50 | 5분 |
 
-### 주요 메트릭
+**주요 검증 사항:**
+- 대량 데이터 처리 성능
+- 배치 크기별 효율성
+- 트랜잭션 처리 속도
+- 부분 성공 처리 (일부 실패)
 
-| 메트릭 | 의미 | 목표 |
-|-------|------|------|
-| TPS | 초당 처리 요청 수 | 높을수록 좋음 |
-| P95 응답시간 | 95%의 요청 응답 시간 | < 3초 |
-| P99 응답시간 | 99%의 요청 응답 시간 | < 5초 |
-| 에러율 | 실패한 요청 비율 | < 1% |
+## 📈 성능 메트릭
 
-### Python 분석 스크립트 출력 예시
+### 주요 지표
 
-```
-==============================================================
-           K6 성능 테스트 결과 분석
-==============================================================
+| 메트릭 | 설명 | 목표 |
+|--------|------|------|
+| **TPS** | 초당 처리 트랜잭션 수 | 높을수록 좋음 |
+| **P95 응답시간** | 95% 요청의 응답 시간 | < 3초 (구매), < 30초 (등록) |
+| **P99 응답시간** | 99% 요청의 응답 시간 | < 5초 (구매), < 60초 (등록) |
+| **에러율** | 실패한 요청 비율 | < 1% (구매), < 10% (등록) |
 
-📊 전체 통계
---------------------------------------------------------------
-테스트 시작: 2025-12-02 14:30:15
-테스트 종료: 2025-12-02 14:37:45
-총 소요 시간: 450.00초 (7.50분)
-총 요청 수: 12,345
-실패한 요청: 23 (0.19%)
-에러 수: 23 (0.19%)
-TPS (초당 요청): 27.43
+## 🔧 환경 변수
 
-⏱️  HTTP 요청 응답 시간 (http_req_duration)
---------------------------------------------------------------
-평균                234.56ms
-P95                 678.90ms
-P99                1234.56ms
-```
-
-## 🔧 문제 해결
-
-### 모든 요청이 실패하는 경우
 ```bash
-# 애플리케이션 상태 확인
-curl http://localhost:8080/actuator/health
-```
+# 애플리케이션 URL
+export BASE_URL=http://localhost:8080
 
-### 재고가 부족한 경우
-```bash
-# 테스트 데이터 재삽입 (모든 상품 재고 100,000개로 리셋)
-mysql -u root -p1234 foo < k6-tests/test-data.sql
+# MySQL 설정
+export MYSQL_HOST=localhost
+export MYSQL_PORT=3306
+export MYSQL_USER=root
+export MYSQL_PASSWORD=1234
+export MYSQL_DB=foo
 
-# 또는 Docker Compose 사용 시
-docker-compose exec -T mysql mysql -uroot -p1234 foo < k6-tests/test-data.sql
-```
+# Redis 설정 (구매 API)
+export REDIS_HOST=localhost
+export REDIS_PORT=6379
 
-### K6가 너무 많은 VU를 생성하지 못하는 경우
-```bash
-# 시스템 파일 디스크립터 한계 증가
-ulimit -n 10000
+# Owner ID (등록 API)
+export OWNER_ID=1
 ```
 
 ## 📚 참고 자료
