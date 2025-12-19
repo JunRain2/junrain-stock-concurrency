@@ -17,5 +17,5 @@ abstract class BusinessException(
  * 이 예외로 감싸진 경우 상위 계층에서 롤백이 불필요함을 의미합니다.
  */
 class InfraException(
-    cause: Throwable
-) : RuntimeException(cause.message, cause)
+    cause: Throwable, customMessage: String? = null
+) : RuntimeException(customMessage ?: cause.message, cause)

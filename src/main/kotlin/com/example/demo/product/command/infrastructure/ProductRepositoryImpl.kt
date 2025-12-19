@@ -1,6 +1,5 @@
 package com.example.demo.product.command.infrastructure
 
-import com.example.demo.global.contract.BatchResult
 import com.example.demo.product.command.domain.Product
 import com.example.demo.product.command.domain.ProductRepository
 import com.example.demo.product.command.domain.StockChange
@@ -12,6 +11,7 @@ import com.example.demo.product.exception.ProductNotFoundException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Repository
 import java.util.*
@@ -38,18 +38,43 @@ class ProductRepositoryImpl(
         return product
     }
 
-    override fun bulkInsert(products: List<Product>): BatchResult<Product> {
-        val result = jdbcProductRepository.bulkInsert(products)
+    override fun saveAll(products: List<Product>): List<Result<Product>> {
+        val productResults = runBlocking {
+            val results = jdbcProductRepository.bulkInsert(products)
+            val (ids, exceptions) = results.partition { it.isSuccess }
 
-        applicationScope.launch {
-            result.succeeded.chunked(redisStockRepository.maxSize).forEach { chunked ->
-                val changeProducts = chunked.map { StockChange(it.id, it.stock) }
-                val requestKey = UUID.randomUUID().toString()
-                redisStockRepository.increaseStock(requestKey, *changeProducts.toTypedArray())
+            buildList<Result<Product>> {
+                ids.mapNotNull { it.getOrNull() }.chunked(1000) { chunk ->
+                    jpaProductRepository.findByIdIn(chunk).forEach {
+                        add(Result.success(it))
+                    }
+                }
+                exceptions.forEach { e ->
+                    e.exceptionOrNull()?.let { exception ->
+                        add(Result.failure<Product>(exception))
+                    }
+                }
             }
         }
 
-        return result
+        insertRedis(productResults)
+
+        return productResults
+    }
+
+    private fun insertRedis(productResults: List<Result<Product>>) {
+        productResults.mapNotNull { it.getOrNull() }
+            .chunked(redisStockRepository.maxSize) { chunk ->
+                applicationScope.launch {
+                    val stockChanges = chunk.map {
+                        StockChange(
+                            productId = it.id, quantity = it.stock
+                        )
+                    }
+                    val requestKey = UUID.randomUUID().toString()
+                    redisStockRepository.increaseStock(requestKey, *stockChanges.toTypedArray())
+                }
+            }
     }
 
     override fun findById(productId: Long): Product {

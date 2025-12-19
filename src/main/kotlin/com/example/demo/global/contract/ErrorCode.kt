@@ -30,6 +30,7 @@ enum class ErrorCode(
     PRODUCT_CODE_DUPLICATED("PRO002", "이미 존재하는 상품 코드입니다", HttpStatus.CONFLICT),
     PRODUCT_OUT_OF_STOCK("PRO003", "재고가 부족합니다", HttpStatus.BAD_REQUEST),
     PRODUCT_ACCESS_DENIED("PRO04", "상품에 대한 권한이 없습니다.", HttpStatus.FORBIDDEN),
+    PRODUCT_CREATION_ERROR("PRO05", "상품을 생성하던 중 예외가 발생했습니다.", HttpStatus.BAD_REQUEST),
 
     // Member
     MEMBER_NOT_FOUND("MEM001", "사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),

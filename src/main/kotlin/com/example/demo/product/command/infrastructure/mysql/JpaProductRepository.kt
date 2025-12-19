@@ -16,4 +16,6 @@ interface JpaProductRepository : JpaRepository<Product, Long> {
     @Modifying
     @Query("UPDATE Product p SET p.stock = p.stock + :quantity WHERE p.id = :productId AND p.stock + :quantity >= 0")
     fun updateProductStock(@Param("productId") productId: Long, @Param("quantity") quantity: Long)
+
+    fun findByIdIn(ids: List<Long>): MutableList<Product>
 }

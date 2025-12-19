@@ -18,24 +18,6 @@ class ProductCommandController(
     private val productRegisterService: ProductRegisterService,
     private val productOrderService: ProductOrderService
 ) {
-    @PostMapping
-    fun registerProduct(
-        @Valid @RequestBody request: UiProductRegisterDto.Request.Register,
-        @RequestParam ownerId: Long
-    ): ApiResponse<UiProductRegisterDto.Response.Register> {
-        val command = AppProductRegisterDto.Command.Register(
-            ownerId = ownerId,
-            name = request.name,
-            price = request.price,
-            stock = request.stock,
-            code = request.code
-        )
-        val result = productRegisterService.registerProduct(command)
-        val response = UiProductRegisterDto.Response.Register.from(result)
-
-        return ApiResponse.ok(response)
-    }
-
     @PostMapping("/bulk")
     fun registerProducts(
         @Valid @RequestBody request: UiProductRegisterDto.Request.BulkRegister,
