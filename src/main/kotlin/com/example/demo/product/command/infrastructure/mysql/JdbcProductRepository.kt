@@ -6,7 +6,6 @@ import com.example.demo.product.exception.ProductDuplicateCodeException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.delay
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.dao.DataAccessResourceFailureException
 import org.springframework.dao.TransientDataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Component
@@ -52,10 +51,7 @@ class JdbcProductRepository(
 
         addAll(retry.map {
             Result.failure(
-                ProductCreationException(
-                    productCode = it.code.code,
-                    exception = DataAccessResourceFailureException("재시도 실패")
-                )
+                ProductCreationException(code = it.code)
             )
         })
     }
@@ -92,10 +88,7 @@ class JdbcProductRepository(
                         if (rows[idx] == 0) {
                             add(
                                 Result.failure(
-                                    ProductCreationException(
-                                        productCode = product.code.code,
-                                        exception = ProductDuplicateCodeException(product.code)
-                                    )
+                                    ProductDuplicateCodeException(product.code)
                                 )
                             )
                         } else if (generatedKeys.next()) {
@@ -103,10 +96,7 @@ class JdbcProductRepository(
                         } else {
                             add(
                                 Result.failure(
-                                    ProductCreationException(
-                                        productCode = product.code.code,
-                                        exception = IllegalStateException("Generated key를 가져올 수 없습니다.")
-                                    )
+                                    IllegalStateException("Generated key를 가져올 수 없습니다.")
                                 )
                             )
                         }

@@ -63,7 +63,7 @@ class ProductRegisterDto {
             val failedProducts: List<FailedRegisterProduct>
         ) {
             data class FailedRegisterProduct(
-                val code: String,
+                val index: Int,  // 1-based index
                 val message: String
             )
 
@@ -74,8 +74,8 @@ class ProductRegisterDto {
                         failureCount = result.failureCount,
                         failedProducts = result.failedProducts.map {
                             FailedRegisterProduct(
-                                code = it.code,
-                                message = it.cause ?: "UNKNOWN"
+                                index = it.index + 1,  // Convert 0-based to 1-based
+                                message = it.cause
                             )
                         }
                     )

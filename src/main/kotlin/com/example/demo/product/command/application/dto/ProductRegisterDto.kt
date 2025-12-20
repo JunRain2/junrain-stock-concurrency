@@ -42,8 +42,8 @@ class ProductRegisterDto {
             val failedProducts: List<FailedRegisterProduct>
         ) {
             data class FailedRegisterProduct(
-                val code: String,
-                val cause: String?
+                val index: Int,
+                val cause: String
             )
         }
     }

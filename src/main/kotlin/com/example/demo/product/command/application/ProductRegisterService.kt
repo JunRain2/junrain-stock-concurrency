@@ -2,13 +2,13 @@ package com.example.demo.product.command.application
 
 import com.example.demo.global.contract.vo.Money
 import com.example.demo.product.command.application.dto.ProductRegisterDto
-import com.example.demo.product.command.application.dto.ProductRegisterDto.Result.BulkRegister.FailedRegisterProduct
 import com.example.demo.product.command.domain.OwnerValidationService
 import com.example.demo.product.command.domain.Product
 import com.example.demo.product.command.domain.ProductRepository
-import com.example.demo.product.command.domain.ProductValidationService
+import com.example.demo.product.command.domain.ProductCodeUniquenessService
 import com.example.demo.product.command.domain.vo.ProductCode
 import com.example.demo.product.exception.ProductCreationException
+import com.example.demo.product.exception.ProductDuplicateCodeException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
 
@@ -17,45 +17,82 @@ private val logger = KotlinLogging.logger { }
 @Service
 class ProductRegisterService(
     private val productRepository: ProductRepository,
-    private val productValidationService: ProductValidationService,
+    private val productCodeUniquenessService: ProductCodeUniquenessService,
     private val ownerValidationService: OwnerValidationService
 ) {
     fun registerProducts(command: ProductRegisterDto.Command.BulkRegister): ProductRegisterDto.Result.BulkRegister {
         ownerValidationService.validateMemberIsSeller(command.ownerId)
 
-        val results = buildList {
-            val creationResults = command.products.map { productData ->
-                runCatching {
-                    Product(
-                        name = productData.name,
-                        code = ProductCode(productData.code),
-                        price = Money.of(productData.price),
-                        stock = productData.stock,
-                        ownerId = command.ownerId
-                    )
-                }.recoverCatching { e ->
-                    throw ProductCreationException(productData.code, e)
-                }.also { add(it) }
+        return command.products
+            .map { runCatching { createProduct(command.ownerId, it) } }
+            .let { productCodeUniquenessService.ensureProductCodeUniqueness(it) }
+            .let { validatedProducts ->
+                val validProducts = validatedProducts.mapNotNull { it.getOrNull() }
+
+                productRepository.saveAll(validProducts).let { saveResults ->
+                    // Create map: ProductCode -> Result<Product>
+                    val successResultsByCode = saveResults.mapNotNull { it.getOrNull() }
+                        .associateBy({ it.code }, { Result.success(it) })
+
+                    val failureResultsByCode = saveResults
+                        .filter { it.isFailure }
+                        .mapNotNull { result ->
+                            when (val exception = result.exceptionOrNull()) {
+                                is ProductCreationException ->
+                                    exception.code to result
+
+                                is ProductDuplicateCodeException ->
+                                    exception.code to result
+
+                                else -> null
+                            }
+                        }
+                        .toMap()
+
+                    // 성공이 우선 - failureResultsByCode의 키가 successResultsByCode에 있으면 무시
+                    val resultsByCode = failureResultsByCode + successResultsByCode
+
+                    // Map validation results to final results, preserving order
+                    validatedProducts.withIndex().associate { (index, validationResult) ->
+                        index to when {
+                            validationResult.isFailure -> validationResult
+                            else -> {
+                                val product = validationResult.getOrThrow()
+                                resultsByCode[product.code]
+                                    ?: Result.failure(IllegalStateException("DB에서 예외가 발생했습니다: ${product.code}"))
+                            }
+                        }
+                    }
+                }
             }
-
-            val successProducts = creationResults.mapNotNull { it.getOrNull() }
-
-            val validationResults = productValidationService.checkProducts(successProducts)
-            addAll(validationResults)  // 검증 결과 추가
-
-            val validatedProducts = validationResults.mapNotNull { it.getOrNull() }
-            addAll(productRepository.saveAll(validatedProducts))
-        }
-
-        return ProductRegisterDto.Result.BulkRegister(
-            successCount = results.count { it.isSuccess },
-            failureCount = results.count { it.isFailure },
-            failedProducts = results.mapNotNull { it.exceptionOrNull() }
-                .filterIsInstance<ProductCreationException>().map {
-                    FailedRegisterProduct(
-                        code = it.productCode,
-                        cause = it.cause?.message,
-                    )
-                })
+            .let { buildResponse(it) }
     }
+
+    private fun createProduct(
+        ownerId: Long,
+        dto: ProductRegisterDto.Command.BulkRegister.RegisterProduct
+    ) =
+        Product(
+            ownerId = ownerId,
+            code = ProductCode(dto.code),
+            stock = dto.stock,
+            price = Money.of(dto.price),
+            name = dto.name
+        )
+
+    private fun buildResponse(results: Map<Int, Result<Product>>) =
+        ProductRegisterDto.Result.BulkRegister(
+            successCount = results.count { it.value.isSuccess },
+            failureCount = results.count { it.value.isFailure },
+            failedProducts = results
+                .filter { it.value.isFailure }
+                .map { (index, result) ->
+                    ProductRegisterDto.Result.BulkRegister.FailedRegisterProduct(
+                        index = index,
+                        cause = result.exceptionOrNull()?.message ?: "Unknown error"
+                    )
+                }
+                .sortedBy { it.index }
+                .toList()
+        )
 }

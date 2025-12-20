@@ -43,7 +43,7 @@ class ProductRepositoryImpl(
             val results = jdbcProductRepository.bulkInsert(products)
             val (ids, exceptions) = results.partition { it.isSuccess }
 
-            buildList<Result<Product>> {
+            buildList {
                 ids.mapNotNull { it.getOrNull() }.chunked(1000) { chunk ->
                     jpaProductRepository.findByIdIn(chunk).forEach {
                         add(Result.success(it))
