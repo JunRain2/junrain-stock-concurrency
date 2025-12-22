@@ -1,4 +1,4 @@
-package com.example.demo.global.logging
+package com.example.demo.config.jdbc
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper

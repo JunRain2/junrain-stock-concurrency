@@ -1,6 +1,6 @@
-package com.example.demo.global.lock.infrastructure.redis
+package com.example.demo.config.redis
 
-import com.example.demo.global.lock.LockRepository
+import com.example.demo.contract.lock.LockRepository
 import org.redisson.api.RedissonClient
 import org.springframework.stereotype.Component
 import java.util.concurrent.TimeUnit

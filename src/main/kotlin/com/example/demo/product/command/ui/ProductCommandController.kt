@@ -1,6 +1,6 @@
 package com.example.demo.product.command.ui
 
-import com.example.demo.global.contract.ApiResponse
+import com.example.demo.contract.dto.ApiResponse
 import com.example.demo.product.command.application.ProductOrderService
 import com.example.demo.product.command.application.ProductRegisterService
 import jakarta.validation.Valid

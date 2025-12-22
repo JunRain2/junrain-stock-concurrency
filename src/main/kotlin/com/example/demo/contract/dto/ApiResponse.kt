@@ -1,5 +1,6 @@
-package com.example.demo.global.contract
+package com.example.demo.contract.dto
 
+import com.example.demo.contract.exception.ErrorCode
 import org.springframework.validation.BindingResult
 
 data class ApiResponse<T>(

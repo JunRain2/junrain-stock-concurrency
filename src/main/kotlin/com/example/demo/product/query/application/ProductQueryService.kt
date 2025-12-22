@@ -1,6 +1,6 @@
 package com.example.demo.product.query.application
 
-import com.example.demo.global.contract.CursorPageResponse
+import com.example.demo.contract.dto.CursorPageResponse
 import com.example.demo.product.exception.ProductNotFoundException
 import com.example.demo.product.query.application.dto.ProductDetailResult
 import com.example.demo.product.query.application.dto.ProductPageQuery

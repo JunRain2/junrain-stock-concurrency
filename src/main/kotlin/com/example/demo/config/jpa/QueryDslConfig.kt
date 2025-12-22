@@ -1,4 +1,4 @@
-package com.example.demo.global.config
+package com.example.demo.config.jpa
 
 import com.querydsl.jpa.impl.JPAQueryFactory
 import jakarta.persistence.EntityManager

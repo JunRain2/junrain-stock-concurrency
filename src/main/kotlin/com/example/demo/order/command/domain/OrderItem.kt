@@ -1,7 +1,7 @@
 package com.example.demo.order.command.domain
 
-import com.example.demo.global.contract.BaseEntity
-import com.example.demo.global.contract.vo.Money
+import com.example.demo.contract.entity.BaseEntity
+import com.example.demo.contract.vo.Money
 import jakarta.persistence.*
 
 @Entity

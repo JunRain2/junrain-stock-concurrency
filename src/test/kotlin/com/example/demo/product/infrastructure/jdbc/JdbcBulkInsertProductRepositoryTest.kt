@@ -1,6 +1,6 @@
 package com.example.demo.product.infrastructure.jdbc
 
-import com.example.demo.global.contract.vo.Money
+import com.example.demo.contract.vo.Money
 import com.example.demo.member.command.domain.Member
 import com.example.demo.member.command.domain.MemberRepository
 import com.example.demo.member.command.domain.MemberType
@@ -16,7 +16,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.test.context.SpringBootTest
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 @SpringBootTest
 class JdbcBulkInsertProductRepositoryTest {

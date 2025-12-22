@@ -1,4 +1,4 @@
-package com.example.demo.global.contract
+package com.example.demo.contract.dto
 
 data class BatchResult<T>(
     val succeeded: List<T>,

@@ -1,5 +1,7 @@
 package com.example.demo.global.logging
 
+import com.example.demo.config.jdbc.ErrorLogRepository
+import com.example.demo.config.jdbc.ErrorLogType
 import com.example.demo.product.command.domain.StockChange
 import com.fasterxml.jackson.core.type.TypeReference
 import org.junit.jupiter.api.Assertions.*

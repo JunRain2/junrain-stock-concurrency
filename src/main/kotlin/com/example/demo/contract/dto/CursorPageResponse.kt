@@ -1,4 +1,4 @@
-package com.example.demo.global.contract
+package com.example.demo.contract.dto
 
 data class CursorPageResponse<T>(
     val data: List<T>,

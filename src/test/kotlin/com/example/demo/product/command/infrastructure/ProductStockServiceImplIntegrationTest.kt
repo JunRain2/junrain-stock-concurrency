@@ -2,7 +2,7 @@ package com.example.demo.product.command.infrastructure
 
 import com.example.demo.batch.job.StockConsistencyBatchJob
 import com.example.demo.config.RedisTestContainersConfig
-import com.example.demo.global.contract.InfraException
+import com.example.demo.contract.exception.InfraException
 import com.example.demo.product.command.domain.ProductStockService
 import com.example.demo.product.command.domain.StockChange
 import eu.rekawek.toxiproxy.model.ToxicDirection

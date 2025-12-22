@@ -1,4 +1,4 @@
-package com.example.demo.global.contract.vo
+package com.example.demo.contract.vo
 
 import jakarta.persistence.Column
 import jakarta.persistence.Embeddable

@@ -1,8 +1,8 @@
 package com.example.demo.product.command.infrastructure.redis
 
-import com.example.demo.global.contract.InfraException
-import com.example.demo.global.logging.ErrorLogRepository
-import com.example.demo.global.logging.ErrorLogType
+import com.example.demo.contract.exception.InfraException
+import com.example.demo.config.jdbc.ErrorLogRepository
+import com.example.demo.config.jdbc.ErrorLogType
 import com.example.demo.product.command.domain.StockChange
 import com.example.demo.product.exception.ProductOutOfStockException
 import io.github.oshai.kotlinlogging.KotlinLogging

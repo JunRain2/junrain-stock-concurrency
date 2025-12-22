@@ -1,4 +1,4 @@
-package com.example.demo.global.contract
+package com.example.demo.contract.entity
 
 import jakarta.persistence.Column
 import jakarta.persistence.EntityListeners

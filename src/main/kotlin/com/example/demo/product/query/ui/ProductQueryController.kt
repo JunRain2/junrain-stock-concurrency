@@ -1,7 +1,7 @@
 package com.example.demo.product.query.ui
 
-import com.example.demo.global.contract.ApiResponse
-import com.example.demo.global.contract.CursorPageResponse
+import com.example.demo.contract.dto.ApiResponse
+import com.example.demo.contract.dto.CursorPageResponse
 import com.example.demo.product.query.application.ProductQueryService
 import com.example.demo.product.query.application.dto.ProductPageQuery
 import com.example.demo.product.query.ui.dto.request.ProductPageRequest

@@ -1,8 +1,8 @@
-package com.example.demo.global.advice
+package com.example.demo.config.web
 
-import com.example.demo.global.contract.ApiResponse
-import com.example.demo.global.contract.BusinessException
-import com.example.demo.global.contract.ErrorCode
+import com.example.demo.contract.dto.ApiResponse
+import com.example.demo.contract.exception.BusinessException
+import com.example.demo.contract.exception.ErrorCode
 import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException

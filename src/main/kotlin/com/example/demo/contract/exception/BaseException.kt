@@ -1,4 +1,4 @@
-package com.example.demo.global.contract
+package com.example.demo.contract.exception
 
 /**
  * 비즈니스 예외 기본 클래스

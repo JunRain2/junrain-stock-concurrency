@@ -1,6 +1,6 @@
 package com.example.demo.cart.command.domain
 
-import com.example.demo.global.contract.BaseEntity
+import com.example.demo.contract.entity.BaseEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Table

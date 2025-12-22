@@ -1,6 +1,6 @@
 package com.example.demo.member.command.domain
 
-import com.example.demo.global.contract.BaseEntity
+import com.example.demo.contract.entity.BaseEntity
 import jakarta.persistence.*
 
 @Entity

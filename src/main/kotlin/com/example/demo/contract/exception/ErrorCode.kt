@@ -1,4 +1,4 @@
-package com.example.demo.global.contract
+package com.example.demo.contract.exception
 
 import org.springframework.http.HttpStatus
 

@@ -1,4 +1,4 @@
-package com.example.demo.global.config
+package com.example.demo.config.coroutine
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
