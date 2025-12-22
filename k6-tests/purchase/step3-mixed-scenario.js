@@ -121,7 +121,7 @@ export function normalUser() {
   };
 
   const startTime = Date.now();
-  const response = http.post(`${BASE_URL}/api/v1/products/purchase`, payload, params);
+  const response = http.post(`${BASE_URL}/api/v1/products/reserve`, payload, params);
   const duration = Date.now() - startTime;
 
   const success = check(response, {
@@ -166,7 +166,7 @@ export function hotItemUser() {
   };
 
   const startTime = Date.now();
-  const response = http.post(`${BASE_URL}/api/v1/products/purchase`, payload, params);
+  const response = http.post(`${BASE_URL}/api/v1/products/reserve`, payload, params);
   const duration = Date.now() - startTime;
 
   const success = check(response, {

@@ -3,14 +3,12 @@ package com.example.demo.product.command.ui
 import com.example.demo.global.contract.ApiResponse
 import com.example.demo.product.command.application.ProductOrderService
 import com.example.demo.product.command.application.ProductRegisterService
-import com.example.demo.product.command.application.dto.ProductOrderDto as AppProductOrderDto
-import com.example.demo.product.command.application.dto.ProductPurchaseDto as AppProductPurchaseDto
-import com.example.demo.product.command.application.dto.ProductRegisterDto as AppProductRegisterDto
-import com.example.demo.product.command.ui.dto.ProductOrderDto as UiProductOrderDto
-import com.example.demo.product.command.ui.dto.ProductPurchaseDto as UiProductPurchaseDto
-import com.example.demo.product.command.ui.dto.ProductRegisterDto as UiProductRegisterDto
 import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.*
+import com.example.demo.product.command.application.dto.ProductPurchaseDto as AppProductPurchaseDto
+import com.example.demo.product.command.application.dto.ProductRegisterDto as AppProductRegisterDto
+import com.example.demo.product.command.ui.dto.ProductPurchaseDto as UiProductPurchaseDto
+import com.example.demo.product.command.ui.dto.ProductRegisterDto as UiProductRegisterDto
 
 @RestController
 @RequestMapping("/api/v1/products")
@@ -40,79 +38,70 @@ class ProductCommandController(
         return ApiResponse.ok(response)
     }
 
-    @PostMapping("/purchase")
-    fun purchaseProducts(
+    @PostMapping("/reserve")
+    fun reserveProducts(
         @Valid @RequestBody request: UiProductPurchaseDto.Request.BulkPurchase
     ): ApiResponse<UiProductPurchaseDto.Response.BulkPurchase> {
-        val commands = request.items.map { item ->
+        val commands = request.items.map {
             AppProductPurchaseDto.Command.Purchase(
-                productId = item.productId,
-                amount = item.quantity
+                productId = it.productId,
+                amount = it.quantity
             )
         }
 
-        val results = productOrderService.reserveProductStock(commands)
+        val results = productOrderService.reserveProducts(commands)
         val response = UiProductPurchaseDto.Response.BulkPurchase.from(results)
 
         return ApiResponse.ok(response)
     }
 
-    @PostMapping("/stock/reserve")
-    fun reserveStock(
-        @Valid @RequestBody request: UiProductOrderDto.Request.ReserveStock
-    ): ApiResponse<UiProductOrderDto.Response.ReserveStock> {
-        val command = AppProductOrderDto.Command.ReserveStockCommand(
-            productId = request.productId,
-            quantity = request.quantity
-        )
+    @PostMapping("/reserve/cancel")
+    fun cancelReservationProducts(
+        @Valid @RequestBody request: UiProductPurchaseDto.Request.BulkPurchase
+    ): ApiResponse<UiProductPurchaseDto.Response.BulkPurchase> {
+        val commands = request.items.map {
+            AppProductPurchaseDto.Command.Purchase(
+                productId = it.productId,
+                amount = it.quantity
+            )
+        }
 
-        val result = productOrderService.reserveStock(command)
-        val response = UiProductOrderDto.Response.ReserveStock.from(result)
-
-        return ApiResponse.ok(response)
-    }
-
-    @PostMapping("/stock/reserve/cancel")
-    fun cancelReservation(
-        @Valid @RequestBody request: UiProductOrderDto.Request.CancelReservation
-    ): ApiResponse<UiProductOrderDto.Response.CancelReservation> {
-        val command = AppProductOrderDto.Command.CancelReservation(
-            productId = request.productId,
-            quantity = request.quantity
-        )
-
-        val result = productOrderService.cancelReservation(command)
-        val response = UiProductOrderDto.Response.CancelReservation.from(result)
+        val results = productOrderService.cancelReservationProducts(commands)
+        val response = UiProductPurchaseDto.Response.BulkPurchase.from(results)
 
         return ApiResponse.ok(response)
     }
 
     @PostMapping("/order")
     fun orderProducts(
-        @Valid @RequestBody request: UiProductOrderDto.Request.OrderProducts
-    ): ApiResponse<UiProductOrderDto.Response.OrderProducts> {
-        val command = AppProductOrderDto.Command.OrderProducts(
-            productId = request.productId,
-            quantity = request.quantity
-        )
+        @Valid @RequestBody request: UiProductPurchaseDto.Request.BulkPurchase
+    ): ApiResponse<UiProductPurchaseDto.Response.BulkPurchase> {
+        val commands = request.items.map {
+            AppProductPurchaseDto.Command.Purchase(
+                productId = it.productId,
+                amount = it.quantity
+            )
+        }
 
-        val result = productOrderService.order(command)
-        val response = UiProductOrderDto.Response.OrderProducts.from(result)
+        val results = productOrderService.orderProducts(commands)
+        val response = UiProductPurchaseDto.Response.BulkPurchase.from(results)
 
         return ApiResponse.ok(response)
     }
 
     @PostMapping("/order/cancel")
-    fun cancelOrder(
-        @Valid @RequestBody request: UiProductOrderDto.Request.CancelOrder
-    ): ApiResponse<UiProductOrderDto.Response.CancelOrder> {
-        val command = AppProductOrderDto.Command.CancelOrder(
-            productId = request.productId,
-            quantity = request.quantity
-        )
+    fun cancelOrderProducts(
+        @Valid @RequestBody request: UiProductPurchaseDto.Request.BulkPurchase
+    ): ApiResponse<UiProductPurchaseDto.Response.BulkPurchase> {
+        val commands = request.items.map {
+            AppProductPurchaseDto.Command.Purchase(
+                productId = it.productId,
+                amount = it.quantity
+            )
+        }
 
-        val result = productOrderService.cancelOrder(command)
-        val response = UiProductOrderDto.Response.CancelOrder.from(result)
+        val results = productOrderService.cancelOrderProducts(commands)
+        val response = UiProductPurchaseDto.Response.BulkPurchase.from(results)
 
         return ApiResponse.ok(response)
     }
