@@ -30,7 +30,6 @@ class ProductRegisterService(
                 val validProducts = validatedProducts.mapNotNull { it.getOrNull() }
 
                 productRepository.saveAll(validProducts).let { saveResults ->
-                    // Create map: ProductCode -> Result<Product>
                     val successResultsByCode = saveResults.mapNotNull { it.getOrNull() }
                         .associateBy({ it.code }, { Result.success(it) })
 
@@ -49,10 +48,8 @@ class ProductRegisterService(
                         }
                         .toMap()
 
-                    // 성공이 우선 - failureResultsByCode의 키가 successResultsByCode에 있으면 무시
                     val resultsByCode = failureResultsByCode + successResultsByCode
 
-                    // Map validation results to final results, preserving order
                     validatedProducts.withIndex().associate { (index, validationResult) ->
                         index to when {
                             validationResult.isFailure -> validationResult

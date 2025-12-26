@@ -14,6 +14,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Repository
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 import java.util.*
 
 private val logger = KotlinLogging.logger { }
@@ -39,19 +41,24 @@ class ProductRepositoryImpl(
     }
 
     override fun saveAll(products: List<Product>): List<Result<Product>> {
+        val createdAt = LocalDateTime.now()
         val productResults = runBlocking {
-            val results = jdbcProductRepository.bulkInsert(products)
+            val results = jdbcProductRepository.bulkInsert(products, createdAt)
             val (ids, exceptions) = results.partition { it.isSuccess }
 
-            buildList {
-                ids.mapNotNull { it.getOrNull() }.chunked(1000) { chunk ->
-                    jpaProductRepository.findByIdIn(chunk).forEach {
-                        add(Result.success(it))
+            buildList<Result<Product>> {
+                ids.mapNotNull { it.getOrNull() }.chunked(1000).forEach { chunk ->
+                    jpaProductRepository.findByCodeIn(chunk).forEach { product ->
+                        if (!compareLocalDateTime(product.createdAt, createdAt)) {
+                            add(Result.failure(ProductDuplicateCodeException(product.code)))
+                        } else {
+                            add(Result.success(product))
+                        }
                     }
                 }
                 exceptions.forEach { e ->
                     e.exceptionOrNull()?.let { exception ->
-                        add(Result.failure<Product>(exception))
+                        add(Result.failure(exception))
                     }
                 }
             }
@@ -60,6 +67,17 @@ class ProductRepositoryImpl(
         insertRedis(productResults)
 
         return productResults
+    }
+
+    /**
+     * DB 환경에 독립적인 시간 비교
+     * - DB마다 정밀도가 다름 (MySQL: 마이크로초, H2: 나노초 등)
+     * - 밀리초로 통일하여 환경 무관하게 비교
+     */
+    private fun compareLocalDateTime(
+        time1: LocalDateTime, time2: LocalDateTime
+    ): Boolean {
+        return time1.truncatedTo(ChronoUnit.MILLIS).isEqual(time2.truncatedTo(ChronoUnit.MILLIS))
     }
 
     private fun insertRedis(productResults: List<Result<Product>>) {

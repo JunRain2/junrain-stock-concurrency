@@ -7,7 +7,7 @@ package com.example.demo.contract.exception
  * ErrorCode를 통해 에러 코드, 메시지, HTTP 상태 코드를 관리합니다.
  */
 abstract class BusinessException(
-    val errorCode: ErrorCode, customMessage: String? = null
+    val errorCode: ErrorCode, customMessage: String? = errorCode.message
 ) : RuntimeException(customMessage)
 
 

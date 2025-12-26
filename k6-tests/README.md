@@ -19,10 +19,9 @@ k6-tests/
 │   └── init-redis-stock.sh          # Redis 재고 초기화 스크립트
 │
 ├── registration/                    # 상품 등록 API 테스트
-│   ├── phase1-baseline.js           # Phase 1: 기본 성능 측정
-│   ├── phase2-batch-optimization.js # Phase 2: 배치 크기 최적화
-│   ├── phase3-normal-concurrency.js # Phase 3: 일반 동시성
-│   ├── phase4-high-concurrency.js   # Phase 4: 높은 동시성
+│   ├── step1-basic-performance.js   # Step 1: 기본 성능 측정
+│   ├── step2-concurrent-brands.js   # Step 2: 동시성 테스트
+│   ├── step3-extreme-load.js        # Step 3: 극한 상황 테스트
 │   └── test-data-registration.sql   # 등록 테스트용 초기 데이터
 │
 ├── results/                         # 테스트 결과 저장 디렉토리
@@ -75,10 +74,9 @@ mysql -u root -p1234 foo < k6-tests/registration/test-data-registration.sql
 ./k6-tests/run-registration-tests.sh
 
 # 개별 테스트 실행
-k6 run --env BASE_URL=http://localhost:8080 --env OWNER_ID=1 k6-tests/registration/phase1-baseline.js
-k6 run --env BASE_URL=http://localhost:8080 --env OWNER_ID=1 k6-tests/registration/phase2-batch-optimization.js
-k6 run --env BASE_URL=http://localhost:8080 --env OWNER_ID=1 k6-tests/registration/phase3-normal-concurrency.js
-k6 run --env BASE_URL=http://localhost:8080 --env OWNER_ID=1 k6-tests/registration/phase4-high-concurrency.js
+k6 run --env BASE_URL=http://localhost:8080 --env OWNER_ID=1 k6-tests/registration/step1-basic-performance.js
+k6 run --env BASE_URL=http://localhost:8080 k6-tests/registration/step2-concurrent-brands.js
+k6 run --env BASE_URL=http://localhost:8080 k6-tests/registration/step3-extreme-load.js
 ```
 
 ### 3. 결과 확인
@@ -93,10 +91,9 @@ open k6-tests/results/purchase/step3-mixed-scenario-summary.html
 open k6-tests/results/purchase/step4-stock-depletion-summary.html
 
 # 등록 API 테스트 결과
-open k6-tests/results/registration/phase1-baseline-summary.html
-open k6-tests/results/registration/phase2-batch-optimization-summary.html
-open k6-tests/results/registration/phase3-normal-concurrency-summary.html
-open k6-tests/results/registration/phase4-high-concurrency-summary.html
+open k6-tests/results/registration/step1-basic-performance-summary.html
+open k6-tests/results/registration/step2-concurrent-brands-summary.html
+open k6-tests/results/registration/step3-extreme-load-summary.html
 ```
 
 ## 📊 테스트 시나리오
@@ -118,18 +115,18 @@ open k6-tests/results/registration/phase4-high-concurrency-summary.html
 
 ### 📝 상품 등록 API 테스트 (Bulk Registration)
 
-| Phase | 목적 | 데이터 | VU | 소요시간 |
-|-------|------|--------|----|----|
-| **Phase 1** | 기준 성능 파악 | 1,000건 × 10회 | 1 | ~5분 |
-| **Phase 2** | 최적 배치 크기 결정 | 100/500/1K/5K/10K건 × 5회 | 1 | ~15분 |
-| **Phase 3** | 일반 다중 사용자 | 1,000건 연속 | 10 | 10분 |
-| **Phase 4** | 높은 부하 검증 | 5,000건 연속 | 50 | 5분 |
+| Step | 목적 | 시나리오 | VU | 소요시간 |
+|------|------|----------|----|----------|
+| **Step 1** | 기본 성능 측정 | 100/500/1K/3K/5K개 × 5회 즉시 순차 실행 | 1 | ~10분 |
+| **Step 2** | 동시성 테스트 | 5개 브랜드 동시 등록 (3K×3 + 5K×2) | 5 | ~10분 |
+| **Step 3** | 극한 상황 테스트 | 10개 브랜드 × 5K개 동시 등록 | 10 | ~20분 |
 
 **주요 검증 사항:**
-- 대량 데이터 처리 성능
-- 배치 크기별 효율성
-- 트랜잭션 처리 속도
+- 배치 크기별 처리 성능 (100~5000개)
+- 다중 브랜드 동시 등록 성능
+- 시스템 리소스 한계 파악
 - 부분 성공 처리 (일부 실패)
+- 극한 상황에서의 안정성
 
 ## 📈 성능 메트릭
 
@@ -138,9 +135,10 @@ open k6-tests/results/registration/phase4-high-concurrency-summary.html
 | 메트릭 | 설명 | 목표 |
 |--------|------|------|
 | **TPS** | 초당 처리 트랜잭션 수 | 높을수록 좋음 |
-| **P95 응답시간** | 95% 요청의 응답 시간 | < 3초 (구매), < 30초 (등록) |
-| **P99 응답시간** | 99% 요청의 응답 시간 | < 5초 (구매), < 60초 (등록) |
-| **에러율** | 실패한 요청 비율 | < 1% (구매), < 10% (등록) |
+| **P95 응답시간** | 95% 요청의 응답 시간 | < 3초 (구매), 배치 크기별 상이 (등록) |
+| **P99 응답시간** | 99% 요청의 응답 시간 | < 5초 (구매), 배치 크기별 상이 (등록) |
+| **에러율** | 실패한 요청 비율 | < 1% (구매, Step1-2), < 10% (Step3) |
+| **처리량** | 초당 처리 상품 수 | > 100 products/sec (등록) |
 
 ## 🔧 환경 변수
 

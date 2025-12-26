@@ -32,59 +32,19 @@ const failedProducts = new Counter('failed_products');
 const registrationDuration = new Trend('registration_duration');
 const throughput = new Trend('throughput'); // products/sec
 
+// 배치 크기 설정
+const BATCH_SIZES = [100, 500, 1000, 3000, 5000];
+const ITERATIONS_PER_BATCH = 5;
+
 // 테스트 설정
 export const options = {
   summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
   scenarios: {
-    // 100개: Warm-up
-    batch_100: {
-      executor: 'per-vu-iterations',
+    sequential_batches: {
+      executor: 'shared-iterations',
       vus: 1,
-      iterations: 5,
-      maxDuration: '5m',
-      startTime: '0s',
-      tags: { batch_size: '100' },
-      env: { PRODUCTS_PER_REQUEST: '100' },
-    },
-    // 500개: 중소 규모
-    batch_500: {
-      executor: 'per-vu-iterations',
-      vus: 1,
-      iterations: 5,
-      maxDuration: '10m',
-      startTime: '5m',
-      tags: { batch_size: '500' },
-      env: { PRODUCTS_PER_REQUEST: '500' },
-    },
-    // 1000개: 표준 크기
-    batch_1000: {
-      executor: 'per-vu-iterations',
-      vus: 1,
-      iterations: 5,
-      maxDuration: '15m',
-      startTime: '15m',
-      tags: { batch_size: '1000' },
-      env: { PRODUCTS_PER_REQUEST: '1000' },
-    },
-    // 3000개: 대량 배치
-    batch_3000: {
-      executor: 'per-vu-iterations',
-      vus: 1,
-      iterations: 5,
-      maxDuration: '20m',
-      startTime: '30m',
-      tags: { batch_size: '3000' },
-      env: { PRODUCTS_PER_REQUEST: '3000' },
-    },
-    // 5000개: 최대 배치 (목표: 30초 이내)
-    batch_5000: {
-      executor: 'per-vu-iterations',
-      vus: 1,
-      iterations: 5,
-      maxDuration: '25m',
-      startTime: '50m',
-      tags: { batch_size: '5000' },
-      env: { PRODUCTS_PER_REQUEST: '5000' },
+      iterations: 1,
+      maxDuration: '30m',
     },
   },
   thresholds: {
@@ -153,77 +113,94 @@ function generateProducts(count) {
 }
 
 export default function () {
-  // 시나리오별 상품 개수 가져오기
-  const productsPerRequest = parseInt(__ENV.PRODUCTS_PER_REQUEST || '1000');
-  const products = generateProducts(productsPerRequest);
+  console.log('\n========================================');
+  console.log('Step 1: 기본 성능 측정 시작');
+  console.log('========================================\n');
 
-  const payload = JSON.stringify({
-    products: products,
-  });
+  // 모든 배치 크기에 대해 순차적으로 실행
+  BATCH_SIZES.forEach(batchSize => {
+    console.log(`\n[배치 크기: ${batchSize}개] 테스트 시작`);
+    console.log(`총 ${ITERATIONS_PER_BATCH}회 반복 실행`);
 
-  const params = {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    tags: {
-      name: 'BulkProductRegistration',
-      batch_size: productsPerRequest.toString(),
-    },
-  };
+    // 각 배치 크기당 5회 반복
+    for (let iter = 1; iter <= ITERATIONS_PER_BATCH; iter++) {
+      const products = generateProducts(batchSize);
 
-  console.log(`\n[배치 크기: ${productsPerRequest}개] Iteration ${__ITER + 1}/5 시작...`);
+      const payload = JSON.stringify({
+        products: products,
+      });
 
-  const startTime = Date.now();
-  const response = http.post(`${BASE_URL}/api/v1/products/bulk?ownerId=${OWNER_ID}`, payload, params);
-  const duration = Date.now() - startTime;
+      const params = {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        tags: {
+          name: 'BulkProductRegistration',
+          batch_size: batchSize.toString(),
+        },
+      };
 
-  // 응답 검증
-  const success = check(response, {
-    'status is 200': (r) => r.status === 200,
-    'response has body': (r) => r.body && r.body.length > 0,
-  });
+      console.log(`\n  Iteration ${iter}/${ITERATIONS_PER_BATCH}...`);
 
-  errorRate.add(!success);
-  registrationDuration.add(duration, { batch_size: productsPerRequest.toString() });
+      const startTime = Date.now();
+      const response = http.post(`${BASE_URL}/api/v1/products/bulk?ownerId=${OWNER_ID}`, payload, params);
+      const duration = Date.now() - startTime;
 
-  // 응답 파싱 및 처리량 계산
-  if (response.status === 200 && response.body) {
-    try {
-      const result = JSON.parse(response.body);
-      const data = result.data;
+      // 응답 검증
+      const success = check(response, {
+        'status is 200': (r) => r.status === 200,
+        'response has body': (r) => r.body && r.body.length > 0,
+      });
 
-      successfulProducts.add(data.successCount, { batch_size: productsPerRequest.toString() });
-      failedProducts.add(data.failureCount, { batch_size: productsPerRequest.toString() });
+      errorRate.add(!success);
+      registrationDuration.add(duration, { batch_size: batchSize.toString() });
 
-      // 처리량 계산 (products/sec)
-      const productsPerSec = (data.successCount / (duration / 1000)).toFixed(2);
-      throughput.add(parseFloat(productsPerSec), { batch_size: productsPerRequest.toString() });
+      // 응답 파싱 및 처리량 계산
+      if (response.status === 200 && response.body) {
+        try {
+          const result = JSON.parse(response.body);
+          const data = result.data;
 
-      console.log(`  ✓ 완료: ${(duration / 1000).toFixed(2)}초`);
-      console.log(`  - 성공: ${data.successCount}/${productsPerRequest}`);
-      console.log(`  - 실패: ${data.failureCount}/${productsPerRequest}`);
-      console.log(`  - 처리량: ${productsPerSec} products/sec`);
-      console.log(`  - 성공률: ${(data.successCount / productsPerRequest * 100).toFixed(2)}%`);
+          successfulProducts.add(data.successCount, { batch_size: batchSize.toString() });
+          failedProducts.add(data.failureCount, { batch_size: batchSize.toString() });
 
-      // 실패 샘플 출력
-      if (data.failedProducts && data.failedProducts.length > 0) {
-        console.log(`  - 실패 샘플 (최대 3개):`);
-        data.failedProducts.slice(0, 3).forEach((failed, idx) => {
-          console.log(`    ${idx + 1}. ${failed.code}: ${failed.message}`);
-        });
+          // 처리량 계산 (products/sec)
+          const productsPerSec = (data.successCount / (duration / 1000)).toFixed(2);
+          throughput.add(parseFloat(productsPerSec), { batch_size: batchSize.toString() });
+
+          console.log(`    ✓ 완료: ${(duration / 1000).toFixed(2)}초`);
+          console.log(`    - 성공: ${data.successCount}/${batchSize}`);
+          console.log(`    - 실패: ${data.failureCount}/${batchSize}`);
+          console.log(`    - 처리량: ${productsPerSec} products/sec`);
+          console.log(`    - 성공률: ${(data.successCount / batchSize * 100).toFixed(2)}%`);
+
+          // 실패 샘플 출력
+          if (data.failedProducts && data.failedProducts.length > 0) {
+            console.log(`    - 실패 샘플 (최대 3개):`);
+            data.failedProducts.slice(0, 3).forEach((failed, idx) => {
+              console.log(`      ${idx + 1}. index ${failed.index}: ${failed.message}`);
+            });
+          }
+        } catch (e) {
+          console.error(`    ✗ 응답 파싱 실패: ${e.message}`);
+          errorRate.add(1);
+        }
+      } else {
+        console.error(`    ✗ 요청 실패 (status: ${response.status})`);
+        if (response.body) {
+          console.error(`    - Error: ${response.body.substring(0, 200)}`);
+        }
       }
-    } catch (e) {
-      console.error(`  ✗ 응답 파싱 실패: ${e.message}`);
-      errorRate.add(1);
-    }
-  } else {
-    console.error(`  ✗ 요청 실패 (status: ${response.status})`);
-    if (response.body) {
-      console.error(`  - Error: ${response.body.substring(0, 200)}`);
-    }
-  }
 
-  sleep(2); // 요청 사이 2초 대기 (DB 안정화)
+      sleep(2); // 요청 사이 2초 대기 (DB 안정화)
+    }
+
+    console.log(`\n[배치 크기: ${batchSize}개] 테스트 완료\n`);
+  });
+
+  console.log('\n========================================');
+  console.log('Step 1: 기본 성능 측정 완료');
+  console.log('========================================\n');
 }
 
 export function handleSummary(data) {

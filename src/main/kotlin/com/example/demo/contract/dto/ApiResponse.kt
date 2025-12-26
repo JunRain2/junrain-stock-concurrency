@@ -27,7 +27,7 @@ data class ApiResponse<T>(
 
         fun fail(
             errorCode: ErrorCode,
-            errorMessage: String?,
+            errorMessage: String? = "유효하지 않은 입력",
             errors: BindingResult? = null
         ): ApiResponse<Any?> {
             val fieldErrors = errors?.fieldErrors?.map {

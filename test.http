@@ -1,24 +1,29 @@
-### 1. Success Scenario - Register 3000 products (all valid)
+### ================================
+### Product Registration API Tests
+### ================================
+
+### 1. Bulk Register - Success Scenario (5000 products)
 < {%
     const products = [];
-    for (let i = 1; i <= 3000; i++) {
+    for (let i = 1; i <= 5000; i++) {
         products.push({
-            "name": `Product${String(i).padStart(4, '0')}`,
+            "name": `Product${String(i).padStart(5, '0')}`,
             "price": 1000 + (i * 10),
             "stock": 100 + i,
-            "code": `PROD-SUCCESS-${String(i).padStart(4, '0')}`
+            "code": `PROD-SUCCESS-${String(i).padStart(5, '0')}`
         });
     }
-    request.variables.set("successData", JSON.stringify({ products }));
+    request.variables.set("bulkSuccessData", JSON.stringify({ products }));
 %}
 POST http://localhost:8080/api/v1/products/bulk?ownerId=1
 Content-Type: application/json
 
-{{successData}}
+{{bulkSuccessData}}
 
-### 2. Failure Scenario - Register 3000 products (partial failure)
-# Every 100th: duplicate code and negative price (will fail)
+### 2. Bulk Register - Partial Failure Scenario (3000 products)
+# Every 100th: duplicate code (will fail)
 # Every 50th: empty name (will fail validation)
+# Every 30th: negative price (will fail)
 # Others: valid data
 < {%
     const products = [];
@@ -26,7 +31,7 @@ Content-Type: application/json
         if (i % 100 === 0) {
             products.push({
                 "name": `FailureProduct${String(i).padStart(4, '0')}`,
-                "price": -1000,
+                "price": 5000,
                 "stock": 50,
                 "code": "DUPLICATE-CODE"
             });
@@ -35,141 +40,446 @@ Content-Type: application/json
                 "name": "",
                 "price": 5000,
                 "stock": 30,
-                "code": `PROD-FAIL-${String(i).padStart(4, '0')}`
+                "code": `PROD-EMPTY-${String(i).padStart(4, '0')}`
+            });
+        } else if (i % 30 === 0) {
+            products.push({
+                "name": `InvalidProduct${String(i).padStart(4, '0')}`,
+                "price": -1000,
+                "stock": 20,
+                "code": `PROD-NEGATIVE-${String(i).padStart(4, '0')}`
             });
         } else {
             products.push({
                 "name": `MixedProduct${String(i).padStart(4, '0')}`,
                 "price": 2000 + (i * 5),
                 "stock": 80 + i,
-                "code": `PROD-FAIL-${String(i).padStart(4, '0')}`
+                "code": `PROD-MIXED-${String(i).padStart(4, '0')}`
             });
         }
     }
-    request.variables.set("failureData", JSON.stringify({ products }));
+    request.variables.set("bulkFailureData", JSON.stringify({ products }));
 %}
 POST http://localhost:8080/api/v1/products/bulk?ownerId=1
 Content-Type: application/json
 
-{{failureData}}
+{{bulkFailureData}}
 
-### 3. Get Product Page - Latest Sorter (Default)
+### 3. Bulk Register - Small Batch (100 products)
+< {%
+    const products = [];
+    for (let i = 1; i <= 100; i++) {
+        products.push({
+            "name": `SmallBatch${String(i).padStart(3, '0')}`,
+            "price": 5000 + (i * 100),
+            "stock": 50 + i,
+            "code": `SMALL-${String(i).padStart(3, '0')}`
+        });
+    }
+    request.variables.set("smallBatchData", JSON.stringify({ products }));
+%}
+POST http://localhost:8080/api/v1/products/bulk?ownerId=2
+Content-Type: application/json
+
+{{smallBatchData}}
+
+### 4. Bulk Register - Multi-Brand Scenario (Owner 3)
+< {%
+    const products = [];
+    for (let i = 1; i <= 1000; i++) {
+        products.push({
+            "name": `Brand3Product${String(i).padStart(4, '0')}`,
+            "price": 3000 + (i * 20),
+            "stock": 150 + i,
+            "code": `BRAND3-${String(i).padStart(4, '0')}`
+        });
+    }
+    request.variables.set("brand3Data", JSON.stringify({ products }));
+%}
+POST http://localhost:8080/api/v1/products/bulk?ownerId=3
+Content-Type: application/json
+
+{{brand3Data}}
+
+### 5. Bulk Register - Empty Products List (Validation Error)
+POST http://localhost:8080/api/v1/products/bulk?ownerId=1
+Content-Type: application/json
+
+{
+  "products": []
+}
+
+### 6. Bulk Register - Missing Required Fields (Validation Error)
+POST http://localhost:8080/api/v1/products/bulk?ownerId=1
+Content-Type: application/json
+
+{
+  "products": [
+    {
+      "name": "Valid Product",
+      "price": 10000,
+      "stock": 100
+    }
+  ]
+}
+
+
+### ================================
+### Product Query API Tests
+### ================================
+
+### 7. Get Product Detail - By ID
+GET http://localhost:8080/api/v1/products/1
+Content-Type: application/json
+
+### 8. Get Product Page - Latest Sorter (Default, No Cursor)
 GET http://localhost:8080/api/v1/products?productName=Product&size=10&sorter=LATEST
 Content-Type: application/json
 
-### 4. Get Product Page - Latest Sorter with ownerId filter
+### 9. Get Product Page - Latest Sorter with OwnerId Filter
 GET http://localhost:8080/api/v1/products?productName=Product&ownerId=1&size=10&sorter=LATEST
 Content-Type: application/json
 
-### 5. Get Product Page - Sale Price Ascending
+### 10. Get Product Page - Latest Sorter with Cursor Pagination
+# Note: Replace createdAt and lastProductId with values from previous response
+GET http://localhost:8080/api/v1/products?productName=Product&size=10&sorter=LATEST&lastProductId=100&createdAt=2025-12-26 15:30:45.123456
+Content-Type: application/json
+
+### 11. Get Product Page - Sale Price Ascending
 GET http://localhost:8080/api/v1/products?productName=Product&size=10&sorter=SALE_PRICE_ASC
 Content-Type: application/json
 
-### 6. Get Product Page - Sale Price Descending
-GET http://localhost:8080/api/v1/products?productName=Product&size=10&sorter=SALE_PRICE_DESC
-Content-Type: application/json
-
-### 7. Get Product Page - Latest Sorter with Cursor (pagination)
-# First, get the initial page and note the nextCursor values
-# Then use lastProductId and createdAt from the response for next page
-GET http://localhost:8080/api/v1/products?productName=Product&size=10&sorter=LATEST&lastProductId=2991&createdAt=2025-11-25T12:24:03.749182
-Content-Type: application/json
-
-### 8. Get Product Page - Price Ascending with Cursor
-# Use lastProductId and price from previous response for pagination
+### 12. Get Product Page - Sale Price Ascending with Cursor
+# Note: Replace price and lastProductId with values from previous response
 GET http://localhost:8080/api/v1/products?productName=Product&size=10&sorter=SALE_PRICE_ASC&lastProductId=50&price=2000
 Content-Type: application/json
 
-### 9. Get Product Page - Price Descending with Cursor
-# Use lastProductId and price from previous response for pagination
-GET http://localhost:8080/api/v1/products?productName=Product&size=10&sorter=SALE_PRICE_DESC&lastProductId=50&price=5000
+### 13. Get Product Page - Sale Price Descending
+GET http://localhost:8080/api/v1/products?productName=Product&size=10&sorter=SALE_PRICE_DESC
 Content-Type: application/json
 
-### 10. Get Product Page - Search with partial name
+### 14. Get Product Page - Sale Price Descending with Cursor
+# Note: Replace price and lastProductId with values from previous response
+GET http://localhost:8080/api/v1/products?productName=Product&size=10&sorter=SALE_PRICE_DESC&lastProductId=100&price=50000
+Content-Type: application/json
+
+### 15. Get Product Page - Search with Partial Name
 GET http://localhost:8080/api/v1/products?productName=Prod&size=5&sorter=LATEST
 Content-Type: application/json
 
-### 11. Get Product Page - Invalid Request (empty productName)
+### 16. Get Product Page - Custom Size (20)
+GET http://localhost:8080/api/v1/products?productName=Product&size=20&sorter=LATEST
+Content-Type: application/json
+
+### 17. Get Product Page - Large Size (100)
+GET http://localhost:8080/api/v1/products?productName=Product&size=100&sorter=SALE_PRICE_ASC
+Content-Type: application/json
+
+### 18. Get Product Page - Invalid Request (Empty productName)
 # Should return validation error
 GET http://localhost:8080/api/v1/products?productName=&size=10&sorter=LATEST
 Content-Type: application/json
 
-### 12. Get Product Page - Custom size
-GET http://localhost:8080/api/v1/products?productName=Product&size=20&sorter=LATEST
+### 19. Get Product Page - Filter by Multiple Owners
+GET http://localhost:8080/api/v1/products?productName=Product&ownerId=2&size=10&sorter=LATEST
 Content-Type: application/json
 
-### 13. Register Single Product - Success
-POST http://localhost:8080/api/v1/products?ownerId=1
-Content-Type: application/json
 
-{
-  "name": "New Product",
-  "price": 15000,
-  "stock": 100,
-  "code": "SINGLE-PROD-001"
-}
+### ================================
+### Product Purchase API Tests (Reserve/Order)
+### ================================
 
-### 14. Register Single Product - Different Owner
-POST http://localhost:8080/api/v1/products?ownerId=2
+### 20. Reserve Products - Single Item
+POST http://localhost:8080/api/v1/products/reserve
 Content-Type: application/json
 
 {
-  "name": "Another Product",
-  "price": 25000,
-  "stock": 50,
-  "code": "SINGLE-PROD-002"
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 5
+    }
+  ]
 }
 
-### 15. Register Single Product - Validation Failure (empty name)
-POST http://localhost:8080/api/v1/products?ownerId=1
+### 21. Reserve Products - Multiple Items
+POST http://localhost:8080/api/v1/products/reserve
 Content-Type: application/json
 
 {
-  "name": "",
-  "price": 10000,
-  "stock": 10,
-  "code": "INVALID-001"
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 10
+    },
+    {
+      "productId": 2,
+      "quantity": 20
+    },
+    {
+      "productId": 3,
+      "quantity": 15
+    }
+  ]
 }
 
-### 16. Register Single Product - Validation Failure (negative price)
-POST http://localhost:8080/api/v1/products?ownerId=1
+### 22. Reserve Products - Large Quantity
+POST http://localhost:8080/api/v1/products/reserve
 Content-Type: application/json
 
 {
-  "name": "Invalid Product",
-  "price": -5000,
-  "stock": 10,
-  "code": "INVALID-002"
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 100
+    }
+  ]
 }
 
-### 17. Purchase Product - Success
-POST http://localhost:8080/api/v1/products/1/purchase
+### 23. Reserve Products - Insufficient Stock (Will Fail)
+POST http://localhost:8080/api/v1/products/reserve
 Content-Type: application/json
 
 {
-  "quantity": 5
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 999999
+    }
+  ]
 }
 
-### 18. Purchase Product - Large Quantity
-POST http://localhost:8080/api/v1/products/1/purchase
+### 24. Reserve Products - Invalid Quantity (Negative)
+POST http://localhost:8080/api/v1/products/reserve
 Content-Type: application/json
 
 {
-  "quantity": 50
+  "items": [
+    {
+      "productId": 1,
+      "quantity": -10
+    }
+  ]
 }
 
-### 19. Purchase Product - Insufficient Stock (should fail)
-POST http://localhost:8080/api/v1/products/1/purchase
+### 25. Reserve Products - Invalid ProductId (Zero)
+POST http://localhost:8080/api/v1/products/reserve
 Content-Type: application/json
 
 {
-  "quantity": 99999
+  "items": [
+    {
+      "productId": 0,
+      "quantity": 10
+    }
+  ]
 }
 
-### 20. Purchase Product - Invalid Quantity (negative)
-POST http://localhost:8080/api/v1/products/1/purchase
+### 26. Cancel Reservation - Single Item
+POST http://localhost:8080/api/v1/products/reserve/cancel
 Content-Type: application/json
 
 {
-  "quantity": -10
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 5
+    }
+  ]
 }
+
+### 27. Cancel Reservation - Multiple Items
+POST http://localhost:8080/api/v1/products/reserve/cancel
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 10
+    },
+    {
+      "productId": 2,
+      "quantity": 20
+    }
+  ]
+}
+
+### 28. Order Products - Single Item
+POST http://localhost:8080/api/v1/products/order
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 5
+    }
+  ]
+}
+
+### 29. Order Products - Multiple Items
+POST http://localhost:8080/api/v1/products/order
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 10
+    },
+    {
+      "productId": 2,
+      "quantity": 20
+    },
+    {
+      "productId": 3,
+      "quantity": 15
+    }
+  ]
+}
+
+### 30. Order Products - Bulk Order (10 items)
+POST http://localhost:8080/api/v1/products/order
+Content-Type: application/json
+
+{
+  "items": [
+    {"productId": 1, "quantity": 5},
+    {"productId": 2, "quantity": 10},
+    {"productId": 3, "quantity": 8},
+    {"productId": 4, "quantity": 12},
+    {"productId": 5, "quantity": 6},
+    {"productId": 6, "quantity": 15},
+    {"productId": 7, "quantity": 9},
+    {"productId": 8, "quantity": 7},
+    {"productId": 9, "quantity": 11},
+    {"productId": 10, "quantity": 13}
+  ]
+}
+
+### 31. Cancel Order - Single Item
+POST http://localhost:8080/api/v1/products/order/cancel
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 5
+    }
+  ]
+}
+
+### 32. Cancel Order - Multiple Items
+POST http://localhost:8080/api/v1/products/order/cancel
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 10
+    },
+    {
+      "productId": 2,
+      "quantity": 20
+    }
+  ]
+}
+
+
+### ================================
+### Workflow Test: Reserve -> Order -> Cancel
+### ================================
+
+### 33. WORKFLOW Step 1: Reserve Products
+POST http://localhost:8080/api/v1/products/reserve
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 10
+    },
+    {
+      "productId": 2,
+      "quantity": 15
+    }
+  ]
+}
+
+### 34. WORKFLOW Step 2: Order Reserved Products
+POST http://localhost:8080/api/v1/products/order
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 10
+    },
+    {
+      "productId": 2,
+      "quantity": 15
+    }
+  ]
+}
+
+### 35. WORKFLOW Step 3: Cancel Order
+POST http://localhost:8080/api/v1/products/order/cancel
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 10
+    },
+    {
+      "productId": 2,
+      "quantity": 15
+    }
+  ]
+}
+
+
+### ================================
+### Edge Cases & Validation Tests
+### ================================
+
+### 36. Reserve with Empty Items List (Validation Error)
+POST http://localhost:8080/api/v1/products/reserve
+Content-Type: application/json
+
+{
+  "items": []
+}
+
+### 37. Order with Missing Request Body (Validation Error)
+POST http://localhost:8080/api/v1/products/order
+Content-Type: application/json
+
+### 38. Get Product Detail - Non-existent Product ID
+GET http://localhost:8080/api/v1/products/999999
+Content-Type: application/json
+
+### 39. Bulk Register - Mixed Valid/Invalid Owner IDs
+POST http://localhost:8080/api/v1/products/bulk?ownerId=999
+Content-Type: application/json
+
+{
+  "products": [
+    {
+      "name": "Test Product",
+      "price": 10000,
+      "stock": 100,
+      "code": "TEST-001"
+    }
+  ]
+}
+
+### 40. Search Products - Special Characters in productName
+GET http://localhost:8080/api/v1/products?productName=%ED%95%9C%EA%B8%80%EC%83%81%ED%92%88&size=10&sorter=LATEST
+Content-Type: application/json

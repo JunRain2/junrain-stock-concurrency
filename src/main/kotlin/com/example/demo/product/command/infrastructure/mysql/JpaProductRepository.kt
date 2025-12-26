@@ -1,6 +1,7 @@
 package com.example.demo.product.command.infrastructure.mysql
 
 import com.example.demo.product.command.domain.Product
+import com.example.demo.product.command.domain.vo.ProductCode
 import jakarta.persistence.LockModeType
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Lock
@@ -17,5 +18,5 @@ interface JpaProductRepository : JpaRepository<Product, Long> {
     @Query("UPDATE Product p SET p.stock = p.stock + :quantity WHERE p.id = :productId AND p.stock + :quantity >= 0")
     fun updateProductStock(@Param("productId") productId: Long, @Param("quantity") quantity: Long)
 
-    fun findByIdIn(ids: List<Long>): MutableList<Product>
+    fun findByCodeIn(codes: List<ProductCode>): List<Product>
 }

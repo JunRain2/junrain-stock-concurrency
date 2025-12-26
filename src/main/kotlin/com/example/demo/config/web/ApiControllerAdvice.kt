@@ -31,7 +31,13 @@ class ApiControllerAdvice {
     fun handleValidationException(e: MethodArgumentNotValidException): ResponseEntity<ApiResponse<*>> {
         log.error("MethodArgumentNotValidException : {}", e.message, e)
         return ResponseEntity.status(ErrorCode.COMMON_INVALID_INPUT.status)
-            .body(ApiResponse.fail(ErrorCode.COMMON_INVALID_INPUT, e.message, e.bindingResult))
+            .body(
+                ApiResponse.fail(
+                    ErrorCode.COMMON_INVALID_INPUT,
+                    ErrorCode.COMMON_INVALID_INPUT.message,
+                    e.bindingResult
+                )
+            )
     }
 
     @ExceptionHandler

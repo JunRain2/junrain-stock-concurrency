@@ -1,16 +1,16 @@
 package com.example.demo.product.command.infrastructure.mysql
 
 import com.example.demo.product.command.domain.Product
+import com.example.demo.product.command.domain.vo.ProductCode
 import com.example.demo.product.exception.ProductCreationException
-import com.example.demo.product.exception.ProductDuplicateCodeException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.delay
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.dao.DataAccessException
 import org.springframework.dao.TransientDataAccessException
+import org.springframework.jdbc.core.BatchPreparedStatementSetter
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Component
-import java.sql.Connection
-import java.sql.Statement
 import java.sql.Timestamp
 import java.time.LocalDateTime
 import kotlin.time.Duration.Companion.milliseconds
@@ -23,13 +23,17 @@ class JdbcProductRepository(
     @param:Value("\${bulk-insert.chunk-size}") private val chunkSize: Int,
     @param:Value("\${bulk-insert.retry-milliseconds}") private val retryDelays: List<Long>
 ) {
-    suspend fun bulkInsert(products: List<Product>): List<Result<Long>> = buildList {
+    suspend fun bulkInsert(
+        products: List<Product>, createdAt: LocalDateTime = LocalDateTime.now()
+    ): List<Result<ProductCode>> = buildList {
         var retry = mutableListOf<Product>()
         products.chunked(chunkSize).forEach { chunked ->
             try {
-                addAll(saveAndReturnedResult(chunked))
+                addAll(saveAndReturnedResult(chunked, createdAt))
             } catch (e: TransientDataAccessException) {
                 retry.addAll(chunked)
+            } catch (e: DataAccessException) {
+                addAll(chunked.map { Result.failure(ProductCreationException(it.code)) })
             }
         }
 
@@ -40,10 +44,12 @@ class JdbcProductRepository(
             val tmp = mutableListOf<Product>()
             retry.chunked(chunkSize).forEach { chunked ->
                 try {
-                    addAll(saveAndReturnedResult(chunked))
+                    addAll(saveAndReturnedResult(chunked, createdAt))
                 } catch (e: TransientDataAccessException) {
                     logger.error(e) { "데이터베이스에 일시적으로 접근 불가" }
                     tmp.addAll(chunked)
+                } catch (e: DataAccessException) {
+                    addAll(chunked.map { Result.failure(ProductCreationException(it.code)) })
                 }
             }
             retry = tmp
@@ -57,18 +63,22 @@ class JdbcProductRepository(
     }
 
 
-    private fun saveAndReturnedResult(products: List<Product>): List<Result<Long>> {
+    private fun saveAndReturnedResult(
+        products: List<Product>, createdAt: LocalDateTime
+    ): List<Result<ProductCode>> {
         val sql = """
-        INSERT IGNORE 
-        INTO products (owner_id, product_code, product_price, product_currency_code, stock, name, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """.trimIndent()
+            INSERT 
+            INTO products (owner_id, product_code, product_price, product_currency_code, stock, name, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE product_code = product_code
+            """.trimIndent()
 
-        val now = Timestamp.valueOf(LocalDateTime.now())
+        val now = Timestamp.valueOf(createdAt)
 
-        return jdbcTemplate.execute { conn: Connection ->
-            conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS).use { ps ->
-                products.forEach { product ->
+        jdbcTemplate.batchUpdate(
+            sql, object : BatchPreparedStatementSetter {
+                override fun setValues(ps: java.sql.PreparedStatement, i: Int) {
+                    val product = products[i]
                     ps.setLong(1, product.ownerId)
                     ps.setString(2, product.code.code)
                     ps.setBigDecimal(3, product.price.amount)
@@ -77,32 +87,13 @@ class JdbcProductRepository(
                     ps.setString(6, product.name)
                     ps.setTimestamp(7, now)
                     ps.setTimestamp(8, now)
-                    ps.addBatch()
                 }
 
-                val rows = ps.executeBatch()
-                val generatedKeys = ps.generatedKeys
+                override fun getBatchSize(): Int = products.size
+            })
 
-                buildList {
-                    products.forEachIndexed { idx, product ->
-                        if (rows[idx] == 0) {
-                            add(
-                                Result.failure(
-                                    ProductDuplicateCodeException(product.code)
-                                )
-                            )
-                        } else if (generatedKeys.next()) {
-                            add(Result.success(generatedKeys.getLong(1)))
-                        } else {
-                            add(
-                                Result.failure(
-                                    IllegalStateException("Generated key를 가져올 수 없습니다.")
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-        } ?: emptyList()
+        return products.indices.map { idx ->
+            Result.success(products[idx].code)
+        }
     }
 }
