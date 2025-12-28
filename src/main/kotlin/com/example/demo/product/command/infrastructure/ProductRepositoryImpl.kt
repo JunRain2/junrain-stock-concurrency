@@ -15,7 +15,6 @@ import kotlinx.coroutines.runBlocking
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Repository
 import java.time.LocalDateTime
-import java.time.temporal.ChronoUnit
 import java.util.*
 
 private val logger = KotlinLogging.logger { }
@@ -48,12 +47,16 @@ class ProductRepositoryImpl(
 
             buildList<Result<Product>> {
                 ids.mapNotNull { it.getOrNull() }.chunked(1000).forEach { chunk ->
-                    jpaProductRepository.findByCodeIn(chunk).forEach { product ->
-                        if (!compareLocalDateTime(product.createdAt, createdAt)) {
-                            add(Result.failure(ProductDuplicateCodeException(product.code)))
-                        } else {
-                            add(Result.success(product))
-                        }
+                    val foundProducts = jpaProductRepository
+                        .findByCreatedAtAndCodeIn(createdAt, chunk)
+                    val foundCodes = foundProducts.map { it.code }.toSet()
+
+                    foundProducts.forEach { product ->
+                        add(Result.success(product))
+                    }
+
+                    chunk.filterNot { code -> foundCodes.contains(code) }.forEach { missingCode ->
+                        add(Result.failure(ProductDuplicateCodeException(missingCode)))
                     }
                 }
                 exceptions.forEach { e ->
@@ -67,17 +70,6 @@ class ProductRepositoryImpl(
         insertRedis(productResults)
 
         return productResults
-    }
-
-    /**
-     * DB 환경에 독립적인 시간 비교
-     * - DB마다 정밀도가 다름 (MySQL: 마이크로초, H2: 나노초 등)
-     * - 밀리초로 통일하여 환경 무관하게 비교
-     */
-    private fun compareLocalDateTime(
-        time1: LocalDateTime, time2: LocalDateTime
-    ): Boolean {
-        return time1.truncatedTo(ChronoUnit.MILLIS).isEqual(time2.truncatedTo(ChronoUnit.MILLIS))
     }
 
     private fun insertRedis(productResults: List<Result<Product>>) {

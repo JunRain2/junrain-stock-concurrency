@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
+import java.time.LocalDateTime
 
 interface JpaProductRepository : JpaRepository<Product, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -19,4 +20,9 @@ interface JpaProductRepository : JpaRepository<Product, Long> {
     fun updateProductStock(@Param("productId") productId: Long, @Param("quantity") quantity: Long)
 
     fun findByCodeIn(codes: List<ProductCode>): List<Product>
+
+    fun findByCreatedAtAndCodeIn(
+        createdAt: LocalDateTime,
+        codes: List<ProductCode>
+    ): List<Product>
 }
