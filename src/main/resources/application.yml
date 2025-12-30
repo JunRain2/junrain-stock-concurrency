@@ -1,6 +1,6 @@
 spring:
   application:
-    name: demo
+    name: stock-concurrency
 
   jpa:
     show-sql: true

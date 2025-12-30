@@ -3,7 +3,7 @@ version: '3.8'
 services:
   mysql:
     image: mysql:8.0
-    container_name: demo-mysql
+    container_name: stock-concurrency-mysql
     environment:
       MYSQL_ROOT_PASSWORD: 1234
       MYSQL_DATABASE: foo
@@ -22,7 +22,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: demo-redis
+    container_name: stock-concurrency-redis
     ports:
       - "6379:6379"
     command: redis-server --maxmemory-policy noeviction
@@ -35,7 +35,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: demo-app
+    container_name: stock-concurrency-app
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/foo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&rewriteBatchedStatements=true
       SPRING_DATASOURCE_USERNAME: root

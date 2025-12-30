@@ -24,13 +24,8 @@ k6-tests/
 │   ├── step3-extreme-load.js        # Step 3: 극한 상황 테스트
 │   └── test-data-registration.sql   # 등록 테스트용 초기 데이터
 │
-├── results/                         # 테스트 결과 저장 디렉토리
-│   ├── purchase/                    # 구매 API 테스트 결과
-│   └── registration/                # 등록 API 테스트 결과
-│
 ├── run-all-tests.sh                 # 구매 API 전체 테스트 실행 스크립트
 ├── run-registration-tests.sh        # 등록 API 전체 테스트 실행 스크립트
-├── analyze.py                       # 결과 분석 Python 스크립트
 └── README.md                        # 이 파일
 ```
 
@@ -79,22 +74,21 @@ k6 run --env BASE_URL=http://localhost:8080 k6-tests/registration/step2-concurre
 k6 run --env BASE_URL=http://localhost:8080 k6-tests/registration/step3-extreme-load.js
 ```
 
-### 3. 결과 확인
-
-#### HTML 리포트
+### 3. Redis 초기화 (구매 API 테스트 시 필요)
 
 ```bash
-# 구매 API 테스트 결과
-open k6-tests/results/purchase/step1-single-product-summary.html
-open k6-tests/results/purchase/step2-multiple-products-summary.html
-open k6-tests/results/purchase/step3-mixed-scenario-summary.html
-open k6-tests/results/purchase/step4-stock-depletion-summary.html
+# Redis 완전 초기화
+bash k6-tests/common/clear-redis.sh
 
-# 등록 API 테스트 결과
-open k6-tests/results/registration/step1-basic-performance-summary.html
-open k6-tests/results/registration/step2-concurrent-brands-summary.html
-open k6-tests/results/registration/step3-extreme-load-summary.html
+# 재고 데이터 설정 (product:1 ~ product:10 각 100,000개)
+bash k6-tests/purchase/init-redis-stock.sh
+
+# Redis 데이터 확인
+docker exec -i stock-concurrency-redis redis-cli GET "product:1"
+# 또는 로컬 Redis: redis-cli GET "product:1"
 ```
+
+**참고:** `run-all-tests.sh` 스크립트는 각 Step 실행 전 자동으로 Redis를 초기화합니다.
 
 ## 📊 테스트 시나리오
 

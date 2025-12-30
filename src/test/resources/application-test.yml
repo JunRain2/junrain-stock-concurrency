@@ -1,6 +1,6 @@
 spring:
   application:
-    name: demo-test
+    name: stock-concurrency-test
 
   quartz:
     auto-startup: false

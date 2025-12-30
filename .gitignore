@@ -38,4 +38,9 @@ out/
 
 ### Kotlin ###
 .kotlin
+
+### K6 Tests ###
 /k6-tests/results/
+
+### macOS ###
+.DS_Store
