@@ -4,7 +4,7 @@
 
 ## 기술적 성과
 
-- [슈뢰딩거의 재고: RedisTimeoutException과 불확실성 해결](https://velog.io/@junrain2/%EC%8A%88%EB%A2%B0%EB%94%A9%EA%B1%B0%EC%9D%98-%EC%9E%AC%EA%B3%A0-RedisTimeoutException%EA%B3%BC-%EB%B6%88%ED%99%95%EC%8B%A4%EC%84%B1-%ED%95%B4%EC%A0%B0)
+- [슈뢰딩거의 재고: RedisTimeoutException과 불확실성 해결](https://velog.io/@junrain2/%EC%8A%88%EB%A2%B0%EB%94%A9%EA%B1%B0%EC%9D%98-%EC%9E%AC%EA%B3%A0-RedisTimeoutException%EA%B3%BC-%EB%B6%88%ED%99%95%EC%8B%A4%EC%84%B1-%ED%95%B4%EA%B2%B0)
 - [대량 데이터 처리 성능 개선](https://velog.io/@junrain2/%EB%8C%80%EB%9F%89-%EB%8D%B0%EC%9D%B4%ED%84%B0)
 - [네트워크 장애 환경 구현하기 - Toxiproxy](https://velog.io/@junrain2/%EB%84%A4%ED%8A%B8%EC%9B%8C%ED%81%AC-%EC%9E%A5%EC%95%A0-%ED%99%98%EA%B2%BD-%EA%B5%AC%ED%98%84%ED%95%98%EA%B8%B0-Toxiproxy)
 - [동시성 환경에서 재고관리: MySQL과 Redis 성능 비교](https://velog.io/@junrain2/%EB%8F%99%EC%8B%9C%EC%84%B1-%ED%99%98%EA%B2%BD%EC%97%90%EC%84%9C-%EC%9E%AC%EA%B3%A0%EA%B4%80%EB%A6%AC-MySQL%EA%B3%BC-Redis-%EC%84%B1%EB%8A%A5-%EB%B9%84%EA%B5%90)
