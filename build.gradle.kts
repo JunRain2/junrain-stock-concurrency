@@ -7,9 +7,9 @@ plugins {
     kotlin("kapt") version "1.9.0"
 }
 
-group = "org.example"
+group = "com.junrain.stock"
 version = "0.0.1-SNAPSHOT"
-description = "demo"
+description = "stock-concurrency"
 
 java {
     toolchain {
