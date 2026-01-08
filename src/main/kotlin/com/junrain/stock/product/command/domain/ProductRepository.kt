@@ -7,4 +7,6 @@ interface ProductRepository {
     fun saveAll(products: List<Product>): List<Result<Product>>
 
     fun findById(productId: Long): Product
+
+    fun findAllByIds(productIds: List<Long>): List<Product>
 }

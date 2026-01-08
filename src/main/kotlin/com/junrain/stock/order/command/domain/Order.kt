@@ -2,6 +2,7 @@ package com.junrain.stock.order.command.domain
 
 import com.junrain.stock.contract.entity.BaseEntity
 import com.junrain.stock.contract.vo.Money
+import com.junrain.stock.order.command.domain.vo.OrderCode
 import com.junrain.stock.order.command.domain.vo.Orderer
 import jakarta.persistence.*
 
@@ -10,9 +11,12 @@ import jakarta.persistence.*
 class Order(
     @Embedded
     private val orderer: Orderer,
-    @OneToMany
-    val orderItems: List<OrderItem>,
+    @OneToMany(mappedBy = "user")
+    private val _orders: MutableList<Order> = mutableListOf(),
     totalAmount: Money,
+
+    @Embedded
+    val code: OrderCode,
 ) : BaseEntity() {
     @Embedded
     @AttributeOverrides(
@@ -30,6 +34,9 @@ class Order(
     @Enumerated(EnumType.STRING)
     @Column(name = "order_status")
     var status: OrderStatus = OrderStatus.PENDING
+
+    val orders: List<Order>
+        get() = _orders.toList()
 }
 
 enum class OrderStatus() {

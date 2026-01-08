@@ -19,6 +19,10 @@ data class Money(
     }
 
     companion object {
+        fun of(value: BigDecimal, currencyCode: CurrencyCode = CurrencyCode.KOR): Money {
+            return Money(value, currencyCode)
+        }
+
         fun of(value: Long, currencyCode: CurrencyCode = CurrencyCode.KOR): Money {
             return Money(BigDecimal(value), currencyCode)
         }
@@ -42,7 +46,7 @@ data class Money(
         return Money(amount * multiplier, currencyCode)
     }
 
-    operator fun times(multiplier: Int): Money {
+    operator fun times(multiplier: Long): Money {
         return Money(amount * multiplier.toBigDecimal(), currencyCode)
     }
 
@@ -51,8 +55,8 @@ data class Money(
         return Money(amount / divisor, currencyCode)
     }
 
-    operator fun div(divisor: Int): Money {
-        require(divisor != 0) { "Cannot divide by zero" }
+    operator fun div(divisor: Long): Money {
+        require(divisor != 0L) { "Cannot divide by zero" }
         return Money(amount / divisor.toBigDecimal(), currencyCode)
     }
 

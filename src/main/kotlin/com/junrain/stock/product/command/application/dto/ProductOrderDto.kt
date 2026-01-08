@@ -1,5 +1,7 @@
 package com.junrain.stock.product.command.application.dto
 
+import com.junrain.stock.contract.vo.Money
+
 class ProductOrderDto {
     class Command {
         data class CancelOrder(
@@ -37,7 +39,8 @@ class ProductOrderDto {
 
         data class ReserveStock(
             val productId: Long,
-            val reservedQuantity: Long
+            val reservedQuantity: Long,
+            val totalAmount: Money,
         )
     }
 }

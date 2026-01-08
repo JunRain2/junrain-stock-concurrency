@@ -1,12 +1,30 @@
 package com.junrain.stock.order.command.application
 
+import com.junrain.stock.contract.vo.Money
+import com.junrain.stock.order.command.application.dto.OrderPlacementDto
+import com.junrain.stock.order.command.domain.Order
+import com.junrain.stock.order.command.domain.OrderRepository
+import com.junrain.stock.order.command.domain.ProductCatalogService
+import com.junrain.stock.order.command.domain.vo.OrderCode
 import org.springframework.stereotype.Service
 
 @Service
-class OrderPlacementService() {
-    fun placeAnOrder(cartItemIds: List<Long>) {
-        // cart에서 product 가져오기 -> cart에 존재하는 데이터는 삭제
-        // product에 stock 선점하기 -> Lock 활용하기
-        // 외부 API를 활용해서 주문 요청하기 -> 인터페이스를 통해서 구현하기
+class OrderPlacementService(
+    private val orderRepository: OrderRepository,
+    private val productCatalogService: ProductCatalogService
+) {
+    fun placeAnOrder(command: OrderPlacementDto.Command.PlaceAnOrder): OrderPlacementDto.Result.PlaceAnOrder {
+        val orderItems = productCatalogService.fulfillOrderItems(command.products)
+        val order = Order(
+            orderer = command.orderer,
+            orderItems = orderItems,
+            totalAmount = Money.of(orderItems.sumOf { it.totalAmounts.amount }),
+            code = OrderCode()
+        ).let { orderRepository.save(it) }
+
+        return OrderPlacementDto.Result.PlaceAnOrder(
+            orderCode = order.code,
+            totalAmount = order.totalAmount
+        )
     }
 }

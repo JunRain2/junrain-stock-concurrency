@@ -90,4 +90,8 @@ class ProductRepositoryImpl(
     override fun findById(productId: Long): Product {
         return jpaProductRepository.findById(productId).orElseThrow { ProductNotFoundException() }
     }
+
+    override fun findAllByIds(productIds: List<Long>): List<Product> {
+        return jpaProductRepository.findAllById(productIds)
+    }
 }

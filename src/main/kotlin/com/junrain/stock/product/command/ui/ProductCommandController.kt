@@ -45,7 +45,7 @@ class ProductCommandController(
         val commands = request.items.map {
             AppProductPurchaseDto.Command.Purchase(
                 productId = it.productId,
-                amount = it.quantity
+                quantity = it.quantity
             )
         }
 
@@ -62,7 +62,7 @@ class ProductCommandController(
         val commands = request.items.map {
             AppProductPurchaseDto.Command.Purchase(
                 productId = it.productId,
-                amount = it.quantity
+                quantity = it.quantity
             )
         }
 
@@ -79,7 +79,7 @@ class ProductCommandController(
         val commands = request.items.map {
             AppProductPurchaseDto.Command.Purchase(
                 productId = it.productId,
-                amount = it.quantity
+                quantity = it.quantity
             )
         }
 
@@ -96,7 +96,7 @@ class ProductCommandController(
         val commands = request.items.map {
             AppProductPurchaseDto.Command.Purchase(
                 productId = it.productId,
-                amount = it.quantity
+                quantity = it.quantity
             )
         }
 
