@@ -9,24 +9,18 @@ import jakarta.persistence.*
 @Entity
 @Table(name = "orders")
 class Order(
-    @Embedded
-    private val orderer: Orderer,
-    @OneToMany(mappedBy = "user")
-    private val _orders: MutableList<Order> = mutableListOf(),
+    @Embedded private val orderer: Orderer,
+    orderItems: List<OrderItem>,
     totalAmount: Money,
 
-    @Embedded
-    val code: OrderCode,
+    @Embedded val code: OrderCode,
 ) : BaseEntity() {
     @Embedded
     @AttributeOverrides(
         AttributeOverride(
-            name = "amount",
-            column = Column(name = "order_total_amount")
-        ),
-        AttributeOverride(
-            name = "currencyCode",
-            column = Column(name = "order_currency_code")
+            name = "amount", column = Column(name = "order_total_amount")
+        ), AttributeOverride(
+            name = "currencyCode", column = Column(name = "order_currency_code")
         )
     )
     var totalAmount: Money = totalAmount
@@ -35,13 +29,11 @@ class Order(
     @Column(name = "order_status")
     var status: OrderStatus = OrderStatus.PENDING
 
-    val orders: List<Order>
-        get() = _orders.toList()
+    @OneToMany(mappedBy = "order", cascade = [CascadeType.ALL], orphanRemoval = true)
+    private val _orderItems: MutableList<OrderItem> = orderItems.toMutableList()
+    val orderItems: List<OrderItem> get() = _orderItems.toList()
 }
 
 enum class OrderStatus() {
-    PENDING,
-    CONFIRMED,
-    PARTIAL_CANCELLED,
-    CANCELLED
+    PENDING, CONFIRMED, PARTIAL_CANCELLED, CANCELLED
 }
