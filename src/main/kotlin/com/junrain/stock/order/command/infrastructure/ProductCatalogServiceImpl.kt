@@ -5,6 +5,7 @@ import com.junrain.stock.order.command.domain.OrderItem
 import com.junrain.stock.order.command.domain.ProductCatalogService
 import com.junrain.stock.product.command.application.ProductOrderService
 import com.junrain.stock.product.command.application.dto.ProductPurchaseDto
+import com.junrain.stock.product.command.domain.StockChange
 import org.springframework.stereotype.Service
 
 // TODO : Order의 비즈니스 로직이 얼추 완성되면 서버를 분리할 예정
@@ -29,5 +30,16 @@ class ProductCatalogServiceImpl(
                 totalAmounts = it.totalAmount
             )
         }
+    }
+
+    override fun deductStocks(orderItems: List<OrderItem>) {
+        val commands = orderItems.map {
+            ProductPurchaseDto.Command.Purchase(
+                productId = it.productId,
+                quantity = it.quantity
+            )
+        }
+
+        productOrderService.deductStocks(commands)
     }
 }

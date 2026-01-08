@@ -1,6 +1,7 @@
 package com.junrain.stock.order.command.application.dto
 
 import com.junrain.stock.contract.vo.Money
+import com.junrain.stock.order.command.domain.OrderStatus
 import com.junrain.stock.order.command.domain.vo.OrderCode
 import com.junrain.stock.order.command.domain.vo.Orderer
 
@@ -17,12 +18,20 @@ class OrderPlacementDto {
                 }
             }
         }
+
+        data class CompletePayment(
+            val orderCode: OrderCode
+        )
     }
 
     class Result {
         data class PlaceAnOrder(
             val orderCode: OrderCode,
             val totalAmount: Money,
+        )
+
+        data class CompletePayment(
+            val orderCode: OrderCode, val orderStatus: OrderStatus
         )
     }
 }

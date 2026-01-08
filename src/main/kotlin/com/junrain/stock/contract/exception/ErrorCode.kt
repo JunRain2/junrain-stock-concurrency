@@ -36,5 +36,8 @@ enum class ErrorCode(
     MEMBER_NOT_FOUND("MEM001", "사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
 
     // cart
-    CART_ITEM_NOT_FOUND("CAR001", "장바구니에서 해당 제품을 찾을 수 없습니다.", HttpStatus.NOT_FOUND)
+    CART_ITEM_NOT_FOUND("CAR001", "장바구니에서 해당 제품을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+
+    // order
+    ORDER_NOT_FOUND("ORD001", "주문을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
 }

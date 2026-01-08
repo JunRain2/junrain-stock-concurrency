@@ -49,7 +49,7 @@ class ProductOrderService(
         return commands.map { ProductPurchaseDto.Result.Purchase(it.productId) }
     }
 
-    fun orderProducts(commands: List<ProductPurchaseDto.Command.Purchase>): List<ProductPurchaseDto.Result.Purchase> {
+    fun deductStocks(commands: List<ProductPurchaseDto.Command.Purchase>): List<ProductPurchaseDto.Result.Purchase> {
         val stockItems = commands.map {
             StockChange(productId = it.productId, quantity = it.quantity)
         }

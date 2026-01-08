@@ -1,6 +1,6 @@
 package com.junrain.stock.product.command.ui.dto
 
-import com.junrain.stock.product.command.application.dto.ProductPurchaseDto as AppProductPurchaseDto
+import com.junrain.stock.product.command.application.dto.ProductOrderDto
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotEmpty
@@ -32,7 +32,7 @@ class ProductPurchaseDto {
             )
 
             companion object {
-                fun from(results: List<AppProductPurchaseDto.Result.Purchase>): BulkPurchase {
+                fun from(results: List<ProductOrderDto.Result.ReserveStock>): BulkPurchase {
                     return BulkPurchase(
                         purchasedProducts = results.map { PurchasedProduct(it.productId) },
                         totalCount = results.size
