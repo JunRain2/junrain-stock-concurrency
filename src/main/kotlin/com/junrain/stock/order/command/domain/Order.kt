@@ -8,19 +8,16 @@ import jakarta.persistence.*
 
 @Entity
 @Table(
-    name = "orders",
-    uniqueConstraints = [
-        UniqueConstraint(
-            name = "uk_order_code",
-            columnNames = ["order_code"]  // OrderCode의 실제 컬럼명
-        )
-    ]
+    name = "orders", uniqueConstraints = [UniqueConstraint(
+        name = "uk_order_code", columnNames = ["order_code"]
+    )]
 )
 class Order(
-    @Embedded private val orderer: Orderer,
-    orderItems: List<OrderItem>,
-
-    @Embedded val code: OrderCode,
+    @Embedded
+    private val orderer: Orderer,
+    @Embedded
+    val code: OrderCode,
+    totalAmount: Money
 ) : BaseEntity() {
     @Embedded
     @AttributeOverrides(
@@ -30,17 +27,14 @@ class Order(
             name = "currencyCode", column = Column(name = "order_currency_code")
         )
     )
-    var totalAmount: Money = Money.of(orderItems.sumOf { it.totalAmounts.amount })
-
     @Enumerated(EnumType.STRING)
     @Column(name = "order_status")
     var status: OrderStatus = OrderStatus.PENDING
         private set
 
-    @OneToMany(cascade = [CascadeType.ALL], orphanRemoval = true)
-    @JoinColumn(name = "order_id", nullable = false)
-    private val _orderItems: MutableList<OrderItem> = orderItems.toMutableList()
-    val orderItems: List<OrderItem> get() = _orderItems.toList()
+    @Embedded
+    var totalAmount: Money = totalAmount
+        private set
 
     fun markAsPaid() {
         status = OrderStatus.PAID

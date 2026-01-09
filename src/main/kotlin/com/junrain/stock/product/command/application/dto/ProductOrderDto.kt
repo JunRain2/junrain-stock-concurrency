@@ -16,7 +16,7 @@ class ProductOrderDto {
             val productId: Long, val quantity: Long
         )
 
-        data class ReserveStockCommand(
+        data class ReserveProducts(
             val productId: Long, val quantity: Long
         )
     }
@@ -37,10 +37,11 @@ class ProductOrderDto {
         )
 
 
-        data class ReserveStock(
+        data class ReserveProducts(
             val productId: Long,
+            val sellerId: Long,
             val reservedQuantity: Long,
-            val totalAmount: Money,
+            val price: Money,
         )
     }
 }

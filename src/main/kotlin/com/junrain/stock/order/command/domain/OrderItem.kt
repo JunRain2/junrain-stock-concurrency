@@ -13,7 +13,12 @@ class OrderItem(
     val quantity: Long,
     @Column(name = "total_amounts")
     @Embedded
-    val totalAmounts: Money
+    val price: Money,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id")
+    val order: Order,
+    @Column(name = "seller_id")
+    val sellerId: Long,
 ) : BaseEntity() {
     @Enumerated(EnumType.STRING)
     @Column(name = "order_item_state")

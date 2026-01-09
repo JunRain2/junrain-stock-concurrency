@@ -32,7 +32,7 @@ class ProductPurchaseDto {
             )
 
             companion object {
-                fun from(results: List<ProductOrderDto.Result.ReserveStock>): BulkPurchase {
+                fun from(results: List<ProductOrderDto.Result.ReserveProducts>): BulkPurchase {
                     return BulkPurchase(
                         purchasedProducts = results.map { PurchasedProduct(it.productId) },
                         totalCount = results.size

@@ -14,10 +14,10 @@ class ProductOrderService(
     private val productRepository: ProductRepository,
     private val productStockService: ProductStockService
 ) {
-    fun reserveProducts(commands: List<ProductPurchaseDto.Command.Purchase>): List<ProductOrderDto.Result.ReserveStock> {
+    fun reserveProducts(commands: List<ProductOrderDto.Command.ReserveProducts>): List<ProductOrderDto.Result.ReserveProducts> {
         val products = productRepository.findAllByIds(commands.map { it.productId }).also {
-                if (it.size != commands.size) throw ProductNotFoundException()
-            }.associateBy { it.id }
+            if (it.size != commands.size) throw ProductNotFoundException()
+        }.associateBy { it.id }
 
         val stockItems = commands.map {
             StockChange(productId = it.productId, quantity = it.quantity)
@@ -31,10 +31,13 @@ class ProductOrderService(
         }
 
         return commands.map {
-            ProductOrderDto.Result.ReserveStock(
+            val product = products.getValue(it.productId)
+
+            ProductOrderDto.Result.ReserveProducts(
                 productId = it.productId,
+                sellerId = product.ownerId,
                 reservedQuantity = it.quantity,
-                totalAmount = products.getValue(it.productId).price * it.quantity
+                price = product.price
             )
         }
     }

@@ -53,7 +53,7 @@ class ProductOrderDto {
             val reservedQuantity: Long
         ) {
             companion object {
-                fun from(result: AppProductOrderDto.Result.ReserveStock): ReserveStock {
+                fun from(result: AppProductOrderDto.Result.ReserveProducts): ReserveStock {
                     return ReserveStock(
                         productId = result.productId,
                         reservedQuantity = result.reservedQuantity

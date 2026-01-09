@@ -1,30 +1,41 @@
 package com.junrain.stock.order.command.application
 
 import com.junrain.stock.contract.lock.LockRepository
+import com.junrain.stock.contract.vo.Money
 import com.junrain.stock.order.command.application.dto.OrderPlacementDto
-import com.junrain.stock.order.command.domain.Order
-import com.junrain.stock.order.command.domain.OrderRepository
-import com.junrain.stock.order.command.domain.ProductCatalogService
+import com.junrain.stock.order.command.domain.*
 import com.junrain.stock.order.command.domain.vo.OrderCode
 import com.junrain.stock.order.exception.OrderNotFoudException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
+import jakarta.transaction.Transactional
 import org.springframework.stereotype.Service
 
 @Service
 class OrderPlacementService(
     private val orderRepository: OrderRepository,
+    private val orderItemRepository: OrderItemRepository,
     private val productCatalogService: ProductCatalogService,
-    private val applicationScope: CoroutineScope,
     private val lockRepository: LockRepository
 ) {
+    // 일단 happy path로 구현해보자 예외는 난중에 생각해보고
+    @Transactional
     fun placeAnOrder(command: OrderPlacementDto.Command.PlaceAnOrder): OrderPlacementDto.Result.PlaceAnOrder {
-        val orderItems = productCatalogService.fulfillOrderItems(command.products)
+        val orderProducts = productCatalogService.reserveProductsForOrder(command.products)
+
         val order = Order(
             orderer = command.orderer,
-            orderItems = orderItems,
-            code = OrderCode()
+            code = OrderCode(),
+            totalAmount = Money.of(orderProducts.sumOf { (it.price * it.quantity).amount })
         ).let { orderRepository.save(it) }
+
+        val orderItems = orderProducts.map {
+            OrderItem(
+                productId = it.productId,
+                quantity = it.quantity,
+                price = it.price,
+                order = order,
+                sellerId = it.sellerId
+            )
+        }.let { orderItemRepository.saveAll(it) }
 
         return OrderPlacementDto.Result.PlaceAnOrder(
             orderCode = order.code,
@@ -32,15 +43,13 @@ class OrderPlacementService(
         )
     }
 
-    // 분산락으로 구현해야 함
     fun payOrder(command: OrderPlacementDto.Command.PayOrder): OrderPlacementDto.Result.CompletePayment {
         val savedOrder = lockRepository.executeWithLock(formatOrderLockKey(command.orderCode)) {
             val order =
                 orderRepository.findByCode(command.orderCode) ?: throw OrderNotFoudException()
+            val orderItems = orderItemRepository.findAllByOrder(order)
 
-            applicationScope.launch {
-                productCatalogService.deductStocks(order.orderItems)
-            }
+            productCatalogService.deductStocks(orderItems)
 
             order.markAsPaid()
             orderRepository.save(order)
