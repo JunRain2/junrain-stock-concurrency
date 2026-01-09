@@ -36,6 +36,10 @@ class Order(
     var totalAmount: Money = totalAmount
         private set
 
+    fun isPurchasable(): Boolean {
+        return status == OrderStatus.PENDING
+    }
+
     fun markAsPaid() {
         status = OrderStatus.PAID
     }

@@ -5,8 +5,10 @@ import com.junrain.stock.contract.vo.Money
 import com.junrain.stock.order.command.application.dto.OrderPlacementDto
 import com.junrain.stock.order.command.domain.*
 import com.junrain.stock.order.command.domain.vo.OrderCode
+import com.junrain.stock.order.exception.OrderInvalidException
 import com.junrain.stock.order.exception.OrderNotFoudException
 import jakarta.transaction.Transactional
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 
 @Service
@@ -14,6 +16,7 @@ class OrderPlacementService(
     private val orderRepository: OrderRepository,
     private val orderItemRepository: OrderItemRepository,
     private val productCatalogService: ProductCatalogService,
+    private val applicationEventPublisher: ApplicationEventPublisher,
     private val lockRepository: LockRepository
 ) {
     // 일단 happy path로 구현해보자 예외는 난중에 생각해보고
@@ -47,6 +50,8 @@ class OrderPlacementService(
         val savedOrder = lockRepository.executeWithLock(formatOrderLockKey(command.orderCode)) {
             val order =
                 orderRepository.findByCode(command.orderCode) ?: throw OrderNotFoudException()
+            if (!order.isPurchasable()) throw OrderInvalidException()
+
             val orderItems = orderItemRepository.findAllByOrder(order)
 
             productCatalogService.deductStocks(orderItems)
@@ -54,6 +59,8 @@ class OrderPlacementService(
             order.markAsPaid()
             orderRepository.save(order)
         }
+
+        applicationEventPublisher.publishEvent(OrderPaidEvent(savedOrder.code))
 
         return OrderPlacementDto.Result.CompletePayment(
             orderCode = savedOrder.code,

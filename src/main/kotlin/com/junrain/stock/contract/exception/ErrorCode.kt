@@ -40,4 +40,5 @@ enum class ErrorCode(
 
     // order
     ORDER_NOT_FOUND("ORD001", "주문을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    ORDER_INVALID("ORD002", "유효하지 않은 주문입니다.", HttpStatus.BAD_REQUEST)
 }
