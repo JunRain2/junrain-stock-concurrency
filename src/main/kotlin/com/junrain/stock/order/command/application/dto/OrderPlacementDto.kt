@@ -19,7 +19,7 @@ class OrderPlacementDto {
             }
         }
 
-        data class CompletePayment(
+        data class PayOrder(
             val orderCode: OrderCode
         )
     }

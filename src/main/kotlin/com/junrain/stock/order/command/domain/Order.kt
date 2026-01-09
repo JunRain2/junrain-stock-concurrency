@@ -42,7 +42,7 @@ class Order(
     private val _orderItems: MutableList<OrderItem> = orderItems.toMutableList()
     val orderItems: List<OrderItem> get() = _orderItems.toList()
 
-    fun completePayment() {
+    fun markAsPaid() {
         status = OrderStatus.PAID
     }
 }

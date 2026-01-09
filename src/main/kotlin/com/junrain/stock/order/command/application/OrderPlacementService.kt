@@ -1,5 +1,6 @@
 package com.junrain.stock.order.command.application
 
+import com.junrain.stock.contract.lock.LockRepository
 import com.junrain.stock.order.command.application.dto.OrderPlacementDto
 import com.junrain.stock.order.command.domain.Order
 import com.junrain.stock.order.command.domain.OrderRepository
@@ -15,6 +16,7 @@ class OrderPlacementService(
     private val orderRepository: OrderRepository,
     private val productCatalogService: ProductCatalogService,
     private val applicationScope: CoroutineScope,
+    private val lockRepository: LockRepository
 ) {
     fun placeAnOrder(command: OrderPlacementDto.Command.PlaceAnOrder): OrderPlacementDto.Result.PlaceAnOrder {
         val orderItems = productCatalogService.fulfillOrderItems(command.products)
@@ -30,19 +32,25 @@ class OrderPlacementService(
         )
     }
 
-    fun completePayment(command: OrderPlacementDto.Command.CompletePayment): OrderPlacementDto.Result.CompletePayment {
-        val order = orderRepository.findByCode(command.orderCode)?.also {
-            it.completePayment()
-            orderRepository.save(it)
-        } ?: throw OrderNotFoudException()
+    // 분산락으로 구현해야 함
+    fun payOrder(command: OrderPlacementDto.Command.PayOrder): OrderPlacementDto.Result.CompletePayment {
+        val savedOrder = lockRepository.executeWithLock(formatOrderLockKey(command.orderCode)) {
+            val order =
+                orderRepository.findByCode(command.orderCode) ?: throw OrderNotFoudException()
 
-        applicationScope.launch {
-            productCatalogService.deductStocks(order.orderItems)
+            applicationScope.launch {
+                productCatalogService.deductStocks(order.orderItems)
+            }
+
+            order.markAsPaid()
+            orderRepository.save(order)
         }
 
         return OrderPlacementDto.Result.CompletePayment(
-            orderCode = order.code,
-            orderStatus = order.status
+            orderCode = savedOrder.code,
+            orderStatus = savedOrder.status
         )
     }
+
+    fun formatOrderLockKey(orderCode: OrderCode) = "order_code:${orderCode.code}"
 }
