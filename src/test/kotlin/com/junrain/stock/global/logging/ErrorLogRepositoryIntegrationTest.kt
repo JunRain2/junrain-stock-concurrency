@@ -1,9 +1,9 @@
 package com.junrain.stock.global.logging
 
-import com.junrain.stock.config.jdbc.ErrorLogRepository
-import com.junrain.stock.config.jdbc.ErrorLogType
-import com.junrain.stock.product.command.domain.StockChange
 import com.fasterxml.jackson.core.type.TypeReference
+import com.junrain.stock.common.infra.jdbc.ErrorLogRepository
+import com.junrain.stock.common.infra.jdbc.ErrorLogType
+import com.junrain.stock.product.domain.StockChange
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -13,7 +13,6 @@ import org.springframework.jdbc.core.JdbcTemplate
 
 @SpringBootTest
 class ErrorLogRepositoryIntegrationTest {
-
     @Autowired
     private lateinit var errorLogRepository: ErrorLogRepository
 
@@ -33,19 +32,21 @@ class ErrorLogRepositoryIntegrationTest {
         // given
         val requestKey = "test-request-123"
         val reason = ErrorLogType.STOCK_CHANGE
-        val content = listOf(
-            StockChange(productId = 1L, quantity = 10L),
-            StockChange(productId = 2L, quantity = 5L)
-        )
+        val content =
+            listOf(
+                StockChange(productId = 1L, quantity = 10L),
+                StockChange(productId = 2L, quantity = 5L),
+            )
 
         // when
         errorLogRepository.saveErrorLog(requestKey, reason, content)
 
         // then
-        val savedLogs = jdbcTemplate.queryForList(
-            "SELECT * FROM exception_logs WHERE request_key = ?",
-            requestKey
-        )
+        val savedLogs =
+            jdbcTemplate.queryForList(
+                "SELECT * FROM exception_logs WHERE request_key = ?",
+                requestKey,
+            )
 
         assertEquals(1, savedLogs.size)
         val savedLog = savedLogs[0]
@@ -66,10 +67,11 @@ class ErrorLogRepositoryIntegrationTest {
         errorLogRepository.saveErrorLog(requestKey, reason, content)
 
         // then
-        val savedLogs = jdbcTemplate.queryForList(
-            "SELECT * FROM exception_logs WHERE request_key = ?",
-            requestKey
-        )
+        val savedLogs =
+            jdbcTemplate.queryForList(
+                "SELECT * FROM exception_logs WHERE request_key = ?",
+                requestKey,
+            )
 
         assertEquals(1, savedLogs.size)
     }
@@ -88,10 +90,11 @@ class ErrorLogRepositoryIntegrationTest {
         errorLogRepository.saveErrorLog(requestKey, reason, content)
 
         // then - 여전히 1개만 존재해야 함 (중복 저장 실패)
-        val savedLogs = jdbcTemplate.queryForList(
-            "SELECT * FROM exception_logs WHERE request_key = ?",
-            requestKey
-        )
+        val savedLogs =
+            jdbcTemplate.queryForList(
+                "SELECT * FROM exception_logs WHERE request_key = ?",
+                requestKey,
+            )
 
         assertEquals(1, savedLogs.size, "중복된 request_key는 저장되지 않아야 함")
     }
@@ -101,19 +104,21 @@ class ErrorLogRepositoryIntegrationTest {
         // given
         val requestKey = "json-test-111"
         val reason = ErrorLogType.STOCK_CHANGE
-        val content = listOf(
-            StockChange(productId = 1L, quantity = 10L),
-            StockChange(productId = 2L, quantity = 5L)
-        )
+        val content =
+            listOf(
+                StockChange(productId = 1L, quantity = 10L),
+                StockChange(productId = 2L, quantity = 5L),
+            )
 
         // when
         errorLogRepository.saveErrorLog(requestKey, reason, content)
 
         // then
-        val savedLogs = jdbcTemplate.queryForList(
-            "SELECT * FROM exception_logs WHERE request_key = ?",
-            requestKey
-        )
+        val savedLogs =
+            jdbcTemplate.queryForList(
+                "SELECT * FROM exception_logs WHERE request_key = ?",
+                requestKey,
+            )
 
         val savedContent = savedLogs[0]["request_content"] as String
         assertTrue(savedContent.contains("productId"))
@@ -139,14 +144,16 @@ class ErrorLogRepositoryIntegrationTest {
         // 데이터가 1분 이상 경과하도록 created_at 수정
         jdbcTemplate.update(
             "UPDATE exception_logs SET created_at = DATE_SUB(NOW(), INTERVAL 2 MINUTE) WHERE request_key IN (?, ?)",
-            requestKey1, requestKey2
+            requestKey1,
+            requestKey2,
         )
 
         // when
-        val errorLogs = errorLogRepository.findAllErrorLog(
-            reason = reason,
-            typeRef = object : TypeReference<List<StockChange>>() {}
-        )
+        val errorLogs =
+            errorLogRepository.findAllErrorLog(
+                reason = reason,
+                typeRef = object : TypeReference<List<StockChange>>() {},
+            )
 
         // then
         assertTrue(errorLogs.size >= 2, "최소 2개 이상의 에러 로그가 조회되어야 함")
@@ -169,20 +176,22 @@ class ErrorLogRepositoryIntegrationTest {
         // 데이터가 1분 이상 경과하도록 created_at 수정
         jdbcTemplate.update(
             "UPDATE exception_logs SET created_at = DATE_SUB(NOW(), INTERVAL 2 MINUTE) WHERE request_key IN (?, ?)",
-            requestKey1, requestKey2
+            requestKey1,
+            requestKey2,
         )
 
         // requestKey2는 실행됨으로 표시
         jdbcTemplate.update(
             "UPDATE exception_logs SET is_executed = true WHERE request_key = ?",
-            requestKey2
+            requestKey2,
         )
 
         // when
-        val errorLogs = errorLogRepository.findAllErrorLog(
-            reason = reason,
-            typeRef = object : TypeReference<List<StockChange>>() {}
-        )
+        val errorLogs =
+            errorLogRepository.findAllErrorLog(
+                reason = reason,
+                typeRef = object : TypeReference<List<StockChange>>() {},
+            )
 
         // then
         val requestKeys = errorLogs.map { it.requestKey }
@@ -200,10 +209,11 @@ class ErrorLogRepositoryIntegrationTest {
         errorLogRepository.saveErrorLog(requestKey, reason, content)
 
         // when - 1분 이내 데이터이므로 조회되지 않음
-        val errorLogs = errorLogRepository.findAllErrorLog(
-            reason = reason,
-            typeRef = object : TypeReference<List<StockChange>>() {}
-        )
+        val errorLogs =
+            errorLogRepository.findAllErrorLog(
+                reason = reason,
+                typeRef = object : TypeReference<List<StockChange>>() {},
+            )
 
         // then
         val requestKeys = errorLogs.map { it.requestKey }
@@ -215,24 +225,26 @@ class ErrorLogRepositoryIntegrationTest {
         // given
         val requestKey = "deserialize-test"
         val reason = ErrorLogType.STOCK_CHANGE
-        val content = listOf(
-            StockChange(productId = 1L, quantity = 10L),
-            StockChange(productId = 2L, quantity = 5L)
-        )
+        val content =
+            listOf(
+                StockChange(productId = 1L, quantity = 10L),
+                StockChange(productId = 2L, quantity = 5L),
+            )
 
         errorLogRepository.saveErrorLog(requestKey, reason, content)
 
         // 데이터가 1분 이상 경과하도록 created_at 수정
         jdbcTemplate.update(
             "UPDATE exception_logs SET created_at = DATE_SUB(NOW(), INTERVAL 2 MINUTE) WHERE request_key = ?",
-            requestKey
+            requestKey,
         )
 
         // when
-        val errorLogs = errorLogRepository.findAllErrorLog(
-            reason = reason,
-            typeRef = object : TypeReference<List<StockChange>>() {}
-        )
+        val errorLogs =
+            errorLogRepository.findAllErrorLog(
+                reason = reason,
+                typeRef = object : TypeReference<List<StockChange>>() {},
+            )
 
         // then
         val foundLog = errorLogs.find { it.requestKey == requestKey }
@@ -264,14 +276,17 @@ class ErrorLogRepositoryIntegrationTest {
         // 모든 데이터가 1분 이상 경과하도록 created_at 수정
         jdbcTemplate.update(
             "UPDATE exception_logs SET created_at = DATE_SUB(created_at, INTERVAL 2 MINUTE) WHERE request_key IN (?, ?, ?)",
-            requestKey1, requestKey2, requestKey3
+            requestKey1,
+            requestKey2,
+            requestKey3,
         )
 
         // when
-        val errorLogs = errorLogRepository.findAllErrorLog(
-            reason = reason,
-            typeRef = object : TypeReference<List<StockChange>>() {}
-        )
+        val errorLogs =
+            errorLogRepository.findAllErrorLog(
+                reason = reason,
+                typeRef = object : TypeReference<List<StockChange>>() {},
+            )
 
         // then
         val foundLogs =
@@ -300,20 +315,22 @@ class ErrorLogRepositoryIntegrationTest {
         errorLogRepository.saveErrorLog(requestKey, reason, content)
 
         // 초기 상태 확인
-        var savedLogs = jdbcTemplate.queryForList(
-            "SELECT * FROM exception_logs WHERE request_key = ?",
-            requestKey
-        )
+        var savedLogs =
+            jdbcTemplate.queryForList(
+                "SELECT * FROM exception_logs WHERE request_key = ?",
+                requestKey,
+            )
         assertFalse(savedLogs[0]["is_executed"] as Boolean, "초기에는 is_executed가 false여야 함")
 
         // when
         errorLogRepository.setExecuted(requestKey)
 
         // then
-        savedLogs = jdbcTemplate.queryForList(
-            "SELECT * FROM exception_logs WHERE request_key = ?",
-            requestKey
-        )
+        savedLogs =
+            jdbcTemplate.queryForList(
+                "SELECT * FROM exception_logs WHERE request_key = ?",
+                requestKey,
+            )
         assertTrue(savedLogs[0]["is_executed"] as Boolean, "setExecuted 후에는 is_executed가 true여야 함")
     }
 
@@ -335,10 +352,11 @@ class ErrorLogRepositoryIntegrationTest {
         // given
         val requestKey = "workflow-test"
         val reason = ErrorLogType.STOCK_CHANGE
-        val content = listOf(
-            StockChange(productId = 1L, quantity = 10L),
-            StockChange(productId = 2L, quantity = 5L)
-        )
+        val content =
+            listOf(
+                StockChange(productId = 1L, quantity = 10L),
+                StockChange(productId = 2L, quantity = 5L),
+            )
 
         // when 1 - 에러 로그 저장
         errorLogRepository.saveErrorLog(requestKey, reason, content)
@@ -346,14 +364,15 @@ class ErrorLogRepositoryIntegrationTest {
         // 1분 이상 경과하도록 수정
         jdbcTemplate.update(
             "UPDATE exception_logs SET created_at = DATE_SUB(NOW(), INTERVAL 2 MINUTE) WHERE request_key = ?",
-            requestKey
+            requestKey,
         )
 
         // when 2 - 에러 로그 조회
-        val errorLogs = errorLogRepository.findAllErrorLog(
-            reason = reason,
-            typeRef = object : TypeReference<List<StockChange>>() {}
-        )
+        val errorLogs =
+            errorLogRepository.findAllErrorLog(
+                reason = reason,
+                typeRef = object : TypeReference<List<StockChange>>() {},
+            )
 
         // then 1 - 조회됨
         val foundLog = errorLogs.find { it.requestKey == requestKey }
@@ -364,10 +383,11 @@ class ErrorLogRepositoryIntegrationTest {
         errorLogRepository.setExecuted(requestKey)
 
         // when 4 - 다시 조회
-        val afterExecutedLogs = errorLogRepository.findAllErrorLog(
-            reason = reason,
-            typeRef = object : TypeReference<List<StockChange>>() {}
-        )
+        val afterExecutedLogs =
+            errorLogRepository.findAllErrorLog(
+                reason = reason,
+                typeRef = object : TypeReference<List<StockChange>>() {},
+            )
 
         // then 2 - 실행 표시 후에는 조회되지 않음
         val foundLogAfter = afterExecutedLogs.find { it.requestKey == requestKey }

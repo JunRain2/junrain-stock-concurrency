@@ -1,10 +1,10 @@
-package com.junrain.stock.product.command.infrastructure
+package com.junrain.stock.product.infra
 
-import com.junrain.stock.contract.exception.InfraException
-import com.junrain.stock.config.jdbc.ErrorLogRepository
-import com.junrain.stock.product.command.domain.StockChange
-import com.junrain.stock.product.command.infrastructure.mysql.JpaProductRepository
-import com.junrain.stock.product.command.infrastructure.redis.RedisStockRepository
+import com.junrain.stock.common.domain.InfraException
+import com.junrain.stock.common.infra.jdbc.ErrorLogRepository
+import com.junrain.stock.product.domain.StockChange
+import com.junrain.stock.product.infra.mysql.JpaProductRepository
+import com.junrain.stock.product.infra.redis.RedisStockRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.*
@@ -23,7 +23,6 @@ import org.redisson.client.RedisTimeoutException
 @OptIn(ExperimentalCoroutinesApi::class)
 @ExtendWith(MockitoExtension::class)
 class ProductStockServiceImplTest {
-
     @Mock
     private lateinit var redisStockRepository: RedisStockRepository
 
@@ -42,11 +41,12 @@ class ProductStockServiceImplTest {
         Dispatchers.setMain(testDispatcher)
         testScope = TestScope(testDispatcher)
 
-        productStockService = ProductStockServiceImpl(
-            redisStockRepository = redisStockRepository,
-            jpaProductRepository = jpaProductRepository,
-            applicationScope = testScope
-        )
+        productStockService =
+            ProductStockServiceImpl(
+                redisStockRepository = redisStockRepository,
+                jpaProductRepository = jpaProductRepository,
+                applicationScope = testScope,
+            )
     }
 
     // ==================== reserve() 테스트 ====================
@@ -54,10 +54,11 @@ class ProductStockServiceImplTest {
     @Test
     fun `reserve는 재고를 감소시키고 정상적으로 완료되어야 한다`() {
         // given
-        val changes = arrayOf(
-            StockChange(productId = 1L, quantity = 10L),
-            StockChange(productId = 2L, quantity = 5L)
-        )
+        val changes =
+            arrayOf(
+                StockChange(productId = 1L, quantity = 10L),
+                StockChange(productId = 2L, quantity = 5L),
+            )
 
         // when
         productStockService.reserve(*changes)
@@ -76,9 +77,10 @@ class ProductStockServiceImplTest {
         whenever(redisStockRepository.decreaseStock(any(), any())).thenThrow(exception)
 
         // when & then
-        val thrown = assertThrows<InfraException> {
-            productStockService.reserve(*changes)
-        }
+        val thrown =
+            assertThrows<InfraException> {
+                productStockService.reserve(*changes)
+            }
 
         assertEquals(exception.cause, thrown.cause)
         verifyNoInteractions(errorLogRepository)
@@ -94,9 +96,10 @@ class ProductStockServiceImplTest {
             whenever(redisStockRepository.decreaseStock(any(), any())).thenThrow(exception)
 
             // when & then
-            val thrown = assertThrows<InfraException> {
-                productStockService.reserve(*changes)
-            }
+            val thrown =
+                assertThrows<InfraException> {
+                    productStockService.reserve(*changes)
+                }
 
             assertEquals(exception.cause, thrown.cause)
         }
@@ -110,9 +113,10 @@ class ProductStockServiceImplTest {
         whenever(redisStockRepository.decreaseStock(any(), any())).thenThrow(exception)
 
         // when & then
-        val thrown = assertThrows<RuntimeException> {
-            productStockService.reserve(*changes)
-        }
+        val thrown =
+            assertThrows<RuntimeException> {
+                productStockService.reserve(*changes)
+            }
 
         assertEquals(exception, thrown)
         verifyNoInteractions(errorLogRepository)
@@ -123,10 +127,11 @@ class ProductStockServiceImplTest {
     @Test
     fun `cancelReservation은 재고를 증가시키고 정상적으로 완료되어야 한다`() {
         // given
-        val changes = arrayOf(
-            StockChange(productId = 1L, quantity = 10L),
-            StockChange(productId = 2L, quantity = 5L)
-        )
+        val changes =
+            arrayOf(
+                StockChange(productId = 1L, quantity = 10L),
+                StockChange(productId = 2L, quantity = 5L),
+            )
 
         // when
         productStockService.cancelReservation(*changes)
@@ -146,9 +151,10 @@ class ProductStockServiceImplTest {
             whenever(redisStockRepository.increaseStock(any(), any())).thenThrow(exception)
 
             // when & then
-            val thrown = assertThrows<InfraException> {
-                productStockService.cancelReservation(*changes)
-            }
+            val thrown =
+                assertThrows<InfraException> {
+                    productStockService.cancelReservation(*changes)
+                }
 
             assertEquals(exception.cause, thrown.cause)
         }
@@ -162,9 +168,10 @@ class ProductStockServiceImplTest {
         whenever(redisStockRepository.increaseStock(any(), any())).thenThrow(exception)
 
         // when & then
-        val thrown = assertThrows<InfraException> {
-            productStockService.cancelReservation(*changes)
-        }
+        val thrown =
+            assertThrows<InfraException> {
+                productStockService.cancelReservation(*changes)
+            }
 
         assertEquals(exception.cause, thrown.cause)
     }
@@ -178,9 +185,10 @@ class ProductStockServiceImplTest {
         whenever(redisStockRepository.increaseStock(any(), any())).thenThrow(exception)
 
         // when & then
-        val thrown = assertThrows<RuntimeException> {
-            productStockService.cancelReservation(*changes)
-        }
+        val thrown =
+            assertThrows<RuntimeException> {
+                productStockService.cancelReservation(*changes)
+            }
 
         assertEquals(exception, thrown)
         verifyNoInteractions(errorLogRepository)
@@ -189,24 +197,26 @@ class ProductStockServiceImplTest {
     // ==================== increase() 테스트 ====================
 
     @Test
-    fun `increase는 DB를 먼저 증가시키고 비동기로 Redis를 증가시켜야 한다`() = runTest {
-        // given
-        val changes = arrayOf(
-            StockChange(productId = 1L, quantity = 10L),
-            StockChange(productId = 2L, quantity = 5L)
-        )
+    fun `increase는 DB를 먼저 증가시키고 비동기로 Redis를 증가시켜야 한다`() =
+        runTest {
+            // given
+            val changes =
+                arrayOf(
+                    StockChange(productId = 1L, quantity = 10L),
+                    StockChange(productId = 2L, quantity = 5L),
+                )
 
-        // when
-        productStockService.increase(*changes)
+            // when
+            productStockService.increase(*changes)
 
-        // 비동기 작업 완료 대기
-        testScope.advanceUntilIdle()
+            // 비동기 작업 완료 대기
+            testScope.advanceUntilIdle()
 
-        // then
-        verify(jpaProductRepository, times(1)).updateProductStock(1L, 10L)
-        verify(jpaProductRepository, times(1)).updateProductStock(2L, 5L)
-        verify(redisStockRepository, times(1)).increaseStock(check { assertNotNull(it) }, any(), any())
-    }
+            // then
+            verify(jpaProductRepository, times(1)).updateProductStock(1L, 10L)
+            verify(jpaProductRepository, times(1)).updateProductStock(2L, 5L)
+            verify(redisStockRepository, times(1)).increaseStock(check { assertNotNull(it) }, any(), any())
+        }
 
     @Test
     fun `increase 시 DB 업데이트가 실패하면 예외가 발생해야 한다`() {
@@ -217,44 +227,47 @@ class ProductStockServiceImplTest {
         whenever(jpaProductRepository.updateProductStock(any(), any())).thenThrow(exception)
 
         // when & then
-        val thrown = assertThrows<RuntimeException> {
-            productStockService.increase(*changes)
-        }
+        val thrown =
+            assertThrows<RuntimeException> {
+                productStockService.increase(*changes)
+            }
 
         assertEquals(exception, thrown)
         verifyNoInteractions(redisStockRepository)
     }
 
     @Test
-    fun `increase 시 비동기 Redis 증가가 실패하면 DB는 증가되어야 한다`() = runTest {
-        // given
-        val changes = arrayOf(StockChange(productId = 1L, quantity = 10L))
-        val exception = RedisConnectionException("Connection failed")
+    fun `increase 시 비동기 Redis 증가가 실패하면 DB는 증가되어야 한다`() =
+        runTest {
+            // given
+            val changes = arrayOf(StockChange(productId = 1L, quantity = 10L))
+            val exception = RedisConnectionException("Connection failed")
 
-        whenever(redisStockRepository.increaseStock(any(), any())).thenThrow(exception)
+            whenever(redisStockRepository.increaseStock(any(), any())).thenThrow(exception)
 
-        // when
-        productStockService.increase(*changes)
+            // when
+            productStockService.increase(*changes)
 
-        // 비동기 작업 완료 대기 (예외가 발생하더라도)
-        testScope.advanceUntilIdle()
+            // 비동기 작업 완료 대기 (예외가 발생하더라도)
+            testScope.advanceUntilIdle()
 
-        // then
-        // DB는 성공적으로 증가되어야 함 (비동기 Redis 실패와 무관)
-        verify(jpaProductRepository, times(1)).updateProductStock(1L, 10L)
-        // 비동기 내부에서 에러 로그 저장 시도 (실패 시 로그만 남음)
-        // Note: 비동기 코루틴 내부의 예외는 삼켜지므로 외부로 전파되지 않음
-    }
+            // then
+            // DB는 성공적으로 증가되어야 함 (비동기 Redis 실패와 무관)
+            verify(jpaProductRepository, times(1)).updateProductStock(1L, 10L)
+            // 비동기 내부에서 에러 로그 저장 시도 (실패 시 로그만 남음)
+            // Note: 비동기 코루틴 내부의 예외는 삼켜지므로 외부로 전파되지 않음
+        }
 
     // ==================== decrease() 테스트 ====================
 
     @Test
     fun `decrease는 DB 재고를 감소시켜야 한다`() {
         // given
-        val changes = arrayOf(
-            StockChange(productId = 1L, quantity = 10L),
-            StockChange(productId = 2L, quantity = 5L)
-        )
+        val changes =
+            arrayOf(
+                StockChange(productId = 1L, quantity = 10L),
+                StockChange(productId = 2L, quantity = 5L),
+            )
 
         // when
         productStockService.decrease(*changes)
@@ -275,9 +288,10 @@ class ProductStockServiceImplTest {
         whenever(jpaProductRepository.updateProductStock(any(), any())).thenThrow(exception)
 
         // when & then
-        val thrown = assertThrows<RuntimeException> {
-            productStockService.decrease(*changes)
-        }
+        val thrown =
+            assertThrows<RuntimeException> {
+                productStockService.decrease(*changes)
+            }
 
         assertEquals(exception, thrown)
         verifyNoInteractions(redisStockRepository)

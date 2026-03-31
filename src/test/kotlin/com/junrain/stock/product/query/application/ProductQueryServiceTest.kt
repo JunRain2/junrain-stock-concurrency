@@ -1,9 +1,9 @@
-package com.junrain.stock.product.query.application
+package com.junrain.stock.product.application
 
-import com.junrain.stock.contract.vo.Money
-import com.junrain.stock.product.query.application.dto.ProductPageQuery
-import com.junrain.stock.product.query.application.dto.ProductPageResult
-import com.junrain.stock.product.query.application.dto.ProductSorter
+import com.junrain.stock.common.domain.Money
+import com.junrain.stock.product.application.query.ProductPageQuery
+import com.junrain.stock.product.application.query.ProductPageResult
+import com.junrain.stock.product.application.query.ProductSorter
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -21,7 +21,6 @@ import java.time.LocalDateTime
 @ExtendWith(MockitoExtension::class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ProductQueryServiceTest {
-
     @Mock
     private lateinit var productQueryRepository: ProductQueryRepository
 
@@ -35,24 +34,28 @@ class ProductQueryServiceTest {
     @Test
     fun `최신순 정렬로 상품 페이지를 조회하면 올바른 응답을 반환해야 한다`() {
         // given
-        val sorter = ProductSorter.LatestSorter(
-            lastProductId = null,
-            createdAt = null
-        )
-        val query = ProductPageQuery(
-            ownerId = null,
-            productName = "Product",
-            productSorter = sorter,
-            size = 10
-        )
+        val sorter =
+            ProductSorter.LatestSorter(
+                lastProductId = null,
+                createdAt = null,
+            )
+        val query =
+            ProductPageQuery(
+                ownerId = null,
+                productName = "Product",
+                productSorter = sorter,
+                size = 10,
+            )
 
         val products = createProductPageResults(10)
-        whenever(productQueryRepository.findProductPage(
-            ownerId = null,
-            size = 10,
-            productName = "Product",
-            sortRequest = sorter
-        )).thenReturn(products)
+        whenever(
+            productQueryRepository.findProductPage(
+                ownerId = null,
+                size = 10,
+                productName = "Product",
+                sortRequest = sorter,
+            ),
+        ).thenReturn(products)
 
         // when
         val result = productQueryService.getProductPage(query)
@@ -68,15 +71,17 @@ class ProductQueryServiceTest {
     @Test
     fun `다음 페이지가 있을 경우 hasNext가 true여야 한다`() {
         // given
-        val query = ProductPageQuery(
-            ownerId = null,
-            productName = "Product",
-            productSorter = ProductSorter.LatestSorter(
-                lastProductId = null,
-                createdAt = null
-            ),
-            size = 10
-        )
+        val query =
+            ProductPageQuery(
+                ownerId = null,
+                productName = "Product",
+                productSorter =
+                    ProductSorter.LatestSorter(
+                        lastProductId = null,
+                        createdAt = null,
+                    ),
+                size = 10,
+            )
 
         // size보다 1개 많은 데이터 반환 (다음 페이지 존재)
         val products = createProductPageResults(11)
@@ -97,15 +102,17 @@ class ProductQueryServiceTest {
     fun `ownerId로 필터링하여 상품 페이지를 조회할 수 있다`() {
         // given
         val ownerId = 1L
-        val query = ProductPageQuery(
-            ownerId = ownerId,
-            productName = "Product",
-            productSorter = ProductSorter.LatestSorter(
-                lastProductId = null,
-                createdAt = null
-            ),
-            size = 10
-        )
+        val query =
+            ProductPageQuery(
+                ownerId = ownerId,
+                productName = "Product",
+                productSorter =
+                    ProductSorter.LatestSorter(
+                        lastProductId = null,
+                        createdAt = null,
+                    ),
+                size = 10,
+            )
 
         val products = createProductPageResults(5, ownerId)
         whenever(productQueryRepository.findProductPage(anyOrNull(), any(), any(), any()))
@@ -124,15 +131,17 @@ class ProductQueryServiceTest {
     @Test
     fun `가격 오름차순 정렬로 상품 페이지를 조회할 수 있다`() {
         // given
-        val query = ProductPageQuery(
-            ownerId = null,
-            productName = "Product",
-            productSorter = ProductSorter.SalePriceAsc(
-                lastProductId = null,
-                price = null
-            ),
-            size = 10
-        )
+        val query =
+            ProductPageQuery(
+                ownerId = null,
+                productName = "Product",
+                productSorter =
+                    ProductSorter.SalePriceAsc(
+                        lastProductId = null,
+                        price = null,
+                    ),
+                size = 10,
+            )
 
         val products = createProductPageResults(10)
         whenever(productQueryRepository.findProductPage(anyOrNull(), any(), any(), any()))
@@ -151,15 +160,17 @@ class ProductQueryServiceTest {
     @Test
     fun `가격 내림차순 정렬로 상품 페이지를 조회할 수 있다`() {
         // given
-        val query = ProductPageQuery(
-            ownerId = null,
-            productName = "Product",
-            productSorter = ProductSorter.SalePriceDesc(
-                lastProductId = null,
-                price = null
-            ),
-            size = 10
-        )
+        val query =
+            ProductPageQuery(
+                ownerId = null,
+                productName = "Product",
+                productSorter =
+                    ProductSorter.SalePriceDesc(
+                        lastProductId = null,
+                        price = null,
+                    ),
+                size = 10,
+            )
 
         val products = createProductPageResults(10)
         whenever(productQueryRepository.findProductPage(anyOrNull(), any(), any(), any()))
@@ -180,15 +191,17 @@ class ProductQueryServiceTest {
         // given
         val lastProductId = 10L
         val createdAt = LocalDateTime.now()
-        val query = ProductPageQuery(
-            ownerId = null,
-            productName = "Product",
-            productSorter = ProductSorter.LatestSorter(
-                lastProductId = lastProductId,
-                createdAt = createdAt
-            ),
-            size = 10
-        )
+        val query =
+            ProductPageQuery(
+                ownerId = null,
+                productName = "Product",
+                productSorter =
+                    ProductSorter.LatestSorter(
+                        lastProductId = lastProductId,
+                        createdAt = createdAt,
+                    ),
+                size = 10,
+            )
 
         val products = createProductPageResults(10, startId = 11L)
         whenever(productQueryRepository.findProductPage(anyOrNull(), any(), any(), any()))
@@ -206,15 +219,17 @@ class ProductQueryServiceTest {
     @Test
     fun `상품명으로 전위 검색이 가능해야 한다`() {
         // given
-        val query = ProductPageQuery(
-            ownerId = null,
-            productName = "Prod",
-            productSorter = ProductSorter.LatestSorter(
-                lastProductId = null,
-                createdAt = null
-            ),
-            size = 10
-        )
+        val query =
+            ProductPageQuery(
+                ownerId = null,
+                productName = "Prod",
+                productSorter =
+                    ProductSorter.LatestSorter(
+                        lastProductId = null,
+                        createdAt = null,
+                    ),
+                size = 10,
+            )
 
         val products = createProductPageResults(5)
         whenever(productQueryRepository.findProductPage(anyOrNull(), any(), any(), any()))
@@ -233,15 +248,17 @@ class ProductQueryServiceTest {
     fun `size 파라미터로 조회 개수를 지정할 수 있다`() {
         // given
         val requestSize = 5
-        val query = ProductPageQuery(
-            ownerId = null,
-            productName = "Product",
-            productSorter = ProductSorter.LatestSorter(
-                lastProductId = null,
-                createdAt = null
-            ),
-            size = requestSize
-        )
+        val query =
+            ProductPageQuery(
+                ownerId = null,
+                productName = "Product",
+                productSorter =
+                    ProductSorter.LatestSorter(
+                        lastProductId = null,
+                        createdAt = null,
+                    ),
+                size = requestSize,
+            )
 
         val products = createProductPageResults(requestSize)
         whenever(productQueryRepository.findProductPage(anyOrNull(), any(), any(), any()))
@@ -259,15 +276,17 @@ class ProductQueryServiceTest {
     @Test
     fun `조회 결과가 없으면 빈 응답을 반환해야 한다`() {
         // given
-        val query = ProductPageQuery(
-            ownerId = null,
-            productName = "NonExistent",
-            productSorter = ProductSorter.LatestSorter(
-                lastProductId = null,
-                createdAt = null
-            ),
-            size = 10
-        )
+        val query =
+            ProductPageQuery(
+                ownerId = null,
+                productName = "NonExistent",
+                productSorter =
+                    ProductSorter.LatestSorter(
+                        lastProductId = null,
+                        createdAt = null,
+                    ),
+                size = 10,
+            )
 
         // Repository에서 빈 리스트 반환
         whenever(productQueryRepository.findProductPage(anyOrNull(), any(), any(), any()))
@@ -288,15 +307,17 @@ class ProductQueryServiceTest {
         // given
         val lastProductId = 5L
         val price = BigDecimal("5000")
-        val query = ProductPageQuery(
-            ownerId = null,
-            productName = "Product",
-            productSorter = ProductSorter.SalePriceAsc(
-                lastProductId = lastProductId,
-                price = price
-            ),
-            size = 10
-        )
+        val query =
+            ProductPageQuery(
+                ownerId = null,
+                productName = "Product",
+                productSorter =
+                    ProductSorter.SalePriceAsc(
+                        lastProductId = lastProductId,
+                        price = price,
+                    ),
+                size = 10,
+            )
 
         val products = createProductPageResults(10, startId = 6L, startPrice = 6000)
         whenever(productQueryRepository.findProductPage(anyOrNull(), any(), any(), any()))
@@ -317,15 +338,17 @@ class ProductQueryServiceTest {
         // given
         val lastProductId = 5L
         val price = BigDecimal("15000")
-        val query = ProductPageQuery(
-            ownerId = null,
-            productName = "Product",
-            productSorter = ProductSorter.SalePriceDesc(
-                lastProductId = lastProductId,
-                price = price
-            ),
-            size = 10
-        )
+        val query =
+            ProductPageQuery(
+                ownerId = null,
+                productName = "Product",
+                productSorter =
+                    ProductSorter.SalePriceDesc(
+                        lastProductId = lastProductId,
+                        price = price,
+                    ),
+                size = 10,
+            )
 
         val products = createProductPageResults(10, startId = 6L, startPrice = 14000)
         whenever(productQueryRepository.findProductPage(anyOrNull(), any(), any(), any()))
@@ -346,19 +369,19 @@ class ProductQueryServiceTest {
         count: Int,
         ownerId: Long = 1L,
         startId: Long = 1L,
-        startPrice: Int = 1000
-    ): List<ProductPageResult> {
-        return (0 until count).map { index ->
+        startPrice: Int = 1000,
+    ): List<ProductPageResult> =
+        (0 until count).map { index ->
             ProductPageResult(
                 productId = startId + index,
                 name = "Product${startId + index}",
                 price = Money.of((startPrice + index * 1000).toLong()),
-                owner = ProductPageResult.OwnerResponse(
-                    ownerId = ownerId,
-                    name = "Owner$ownerId"
-                ),
-                createdAt = LocalDateTime.now().minusHours(count - index.toLong())
+                owner =
+                    ProductPageResult.OwnerResponse(
+                        ownerId = ownerId,
+                        name = "Owner$ownerId",
+                    ),
+                createdAt = LocalDateTime.now().minusHours(count - index.toLong()),
             )
         }
-    }
 }

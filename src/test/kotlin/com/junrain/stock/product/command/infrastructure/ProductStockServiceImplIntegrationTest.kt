@@ -1,10 +1,10 @@
-package com.junrain.stock.product.command.infrastructure
+package com.junrain.stock.product.infra
 
-import com.junrain.stock.batch.job.StockConsistencyBatchJob
+import com.junrain.stock.common.domain.InfraException
 import com.junrain.stock.config.RedisTestContainersConfig
-import com.junrain.stock.contract.exception.InfraException
-import com.junrain.stock.product.command.domain.ProductStockService
-import com.junrain.stock.product.command.domain.StockChange
+import com.junrain.stock.product.domain.ProductStockService
+import com.junrain.stock.product.domain.StockChange
+import com.junrain.stock.product.infra.batch.StockConsistencyBatchJob
 import eu.rekawek.toxiproxy.model.ToxicDirection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -122,7 +122,8 @@ class ProductStockServiceImplIntegrationTest {
 
         // when
         productStockService.reserve(
-            StockChange(product1Id, 10L), StockChange(product2Id, 20L)
+            StockChange(product1Id, 10L),
+            StockChange(product2Id, 20L),
         )
 
         // then
@@ -145,9 +146,10 @@ class ProductStockServiceImplIntegrationTest {
         redisProxy.disable()
 
         // when & then - 연결 실패로 인한 예외 발생
-        val exception = assertThrows<Exception> {
-            productStockService.reserve(StockChange(productId, reserveQuantity))
-        }
+        val exception =
+            assertThrows<Exception> {
+                productStockService.reserve(StockChange(productId, reserveQuantity))
+            }
         assertNotNull(exception)
         // RedisConnectionFailureException이 발생할 수 있음
         assertTrue(exception is InfraException || exception is RedisConnectionFailureException)
@@ -167,9 +169,10 @@ class ProductStockServiceImplIntegrationTest {
         redisProxy.disable()
 
         // when & then
-        val exception = assertThrows<InfraException> {
-            productStockService.cancelReservation(StockChange(productId, cancelQuantity))
-        }
+        val exception =
+            assertThrows<InfraException> {
+                productStockService.cancelReservation(StockChange(productId, cancelQuantity))
+            }
         assertNotNull(exception)
 
         val errorLogs = jdbcTemplate.queryForList("SELECT * FROM exception_logs")
@@ -196,9 +199,10 @@ class ProductStockServiceImplIntegrationTest {
 
         try {
             // when & then - 타임아웃 예외 발생
-            val exception = assertThrows<InfraException> {
-                productStockService.reserve(StockChange(productId, reserveQuantity))
-            }
+            val exception =
+                assertThrows<InfraException> {
+                    productStockService.reserve(StockChange(productId, reserveQuantity))
+                }
             assertNotNull(exception)
 
             // Dispatchers.Unconfined로 인해 즉시 실행되므로 바로 확인 가능
@@ -215,36 +219,38 @@ class ProductStockServiceImplIntegrationTest {
 // ==================== 동시성 테스트 ====================
 
     @Test
-    fun `여러 스레드에서 동시에 재고를 예약해도 정합성이 유지되어야 한다`() = runTest {
-        // given
-        val productId = 1L
-        val initialStock = 1000L
-        val reserveQuantity = 1L
-        val concurrentRequests = 50
+    fun `여러 스레드에서 동시에 재고를 예약해도 정합성이 유지되어야 한다`() =
+        runTest {
+            // given
+            val productId = 1L
+            val initialStock = 1000L
+            val reserveQuantity = 1L
+            val concurrentRequests = 50
 
-        redissonClient.getAtomicLong("product_stock:$productId").set(initialStock)
+            redissonClient.getAtomicLong("product_stock:$productId").set(initialStock)
 
-        // when - 동시에 50개의 예약 요청
-        val jobs = List(concurrentRequests) {
-            async(Dispatchers.Default) {
-                try {
-                    productStockService.reserve(StockChange(productId, reserveQuantity))
-                    true
-                } catch (e: Exception) {
-                    false
+            // when - 동시에 50개의 예약 요청
+            val jobs =
+                List(concurrentRequests) {
+                    async(Dispatchers.Default) {
+                        try {
+                            productStockService.reserve(StockChange(productId, reserveQuantity))
+                            true
+                        } catch (e: Exception) {
+                            false
+                        }
+                    }
                 }
-            }
+
+            val results = jobs.awaitAll()
+            val successCount = results.count { it }
+
+            // then
+            val finalStock = redissonClient.getAtomicLong("product_stock:$productId").get()
+            // 재고가 정확히 감소해야 함
+            assertEquals(initialStock - (successCount * reserveQuantity), finalStock)
+            println("Initial: $initialStock, Success: $successCount, Final: $finalStock")
         }
-
-        val results = jobs.awaitAll()
-        val successCount = results.count { it }
-
-        // then
-        val finalStock = redissonClient.getAtomicLong("product_stock:$productId").get()
-        // 재고가 정확히 감소해야 함
-        assertEquals(initialStock - (successCount * reserveQuantity), finalStock)
-        println("Initial: $initialStock, Success: $successCount, Final: $finalStock")
-    }
 
 // ==================== 재고 부족 시나리오 ====================
 
@@ -258,9 +264,10 @@ class ProductStockServiceImplIntegrationTest {
         redissonClient.getAtomicLong("product_stock:$productId").set(initialStock)
 
         // when & then - 재고 부족으로 예외 발생
-        val exception = assertThrows<Exception> {
-            productStockService.reserve(StockChange(productId, reserveQuantity))
-        }
+        val exception =
+            assertThrows<Exception> {
+                productStockService.reserve(StockChange(productId, reserveQuantity))
+            }
         assertNotNull(exception)
         println("재고 부족 예외: ${exception::class.simpleName} - ${exception.message}")
 
@@ -269,7 +276,7 @@ class ProductStockServiceImplIntegrationTest {
         // Redis의 원자적 연산 특성상 음수가 될 수 있지만, 예외가 발생했으므로 롤백 필요
         assertTrue(
             remainingStock < 0 || remainingStock == initialStock,
-            "재고는 음수이거나 초기값을 유지해야 함. 현재: $remainingStock"
+            "재고는 음수이거나 초기값을 유지해야 함. 현재: $remainingStock",
         )
     }
 
@@ -284,15 +291,18 @@ class ProductStockServiceImplIntegrationTest {
         // Redis 연결 차단
         redisProxy.disable()
 
-        val exception = assertThrows<InfraException> {
-            productStockService.cancelReservation(StockChange(productId, cancelQuantity))
-        }
+        val exception =
+            assertThrows<InfraException> {
+                productStockService.cancelReservation(StockChange(productId, cancelQuantity))
+            }
         assertNotNull(exception)
 
         // Dispatchers.Unconfined로 인해 즉시 실행되므로 바로 확인 가능
-        val errorLogs = jdbcTemplate.queryForList(
-            "SELECT * FROM exception_logs WHERE reason = ?", "STOCK_CHANGE"
-        )
+        val errorLogs =
+            jdbcTemplate.queryForList(
+                "SELECT * FROM exception_logs WHERE reason = ?",
+                "STOCK_CHANGE",
+            )
 
         // Redis 연결 복구
         redisProxy.enable()
@@ -341,15 +351,18 @@ class ProductStockServiceImplIntegrationTest {
         // Redis 연결 차단 -> cancelReservation 실패 -> 에러 로그 저장
         redisProxy.disable()
 
-        val exception = assertThrows<InfraException> {
-            productStockService.cancelReservation(StockChange(productId, cancelQuantity))
-        }
+        val exception =
+            assertThrows<InfraException> {
+                productStockService.cancelReservation(StockChange(productId, cancelQuantity))
+            }
         assertNotNull(exception)
 
         // 에러 로그가 저장되었는지 확인
-        val errorLogsBeforeBatch = jdbcTemplate.queryForList(
-            "SELECT * FROM exception_logs WHERE reason = ? AND is_executed = false", "STOCK_CHANGE"
-        )
+        val errorLogsBeforeBatch =
+            jdbcTemplate.queryForList(
+                "SELECT * FROM exception_logs WHERE reason = ? AND is_executed = false",
+                "STOCK_CHANGE",
+            )
         assertTrue(errorLogsBeforeBatch.isNotEmpty(), "에러 로그가 저장되어야 함")
 
         // Redis 연결 복구
@@ -357,7 +370,7 @@ class ProductStockServiceImplIntegrationTest {
 
         // created_at이 1분 이전이 되도록 시간 조작 (배치 쿼리에서 1분 전 데이터만 가져오기 때문)
         jdbcTemplate.update(
-            "UPDATE exception_logs SET created_at = DATE_SUB(NOW(), INTERVAL 2 MINUTE) WHERE is_executed = false"
+            "UPDATE exception_logs SET created_at = DATE_SUB(NOW(), INTERVAL 2 MINUTE) WHERE is_executed = false",
         )
 
         // when - 배치 작업 실행
@@ -367,15 +380,19 @@ class ProductStockServiceImplIntegrationTest {
 
         // then
         // 1. 에러 로그가 실행 완료 처리되었는지 확인
-        val errorLogsAfterBatch = jdbcTemplate.queryForList(
-            "SELECT * FROM exception_logs WHERE reason = ? AND is_executed = false", "STOCK_CHANGE"
-        )
+        val errorLogsAfterBatch =
+            jdbcTemplate.queryForList(
+                "SELECT * FROM exception_logs WHERE reason = ? AND is_executed = false",
+                "STOCK_CHANGE",
+            )
         assertEquals(0, errorLogsAfterBatch.size, "모든 에러 로그가 실행 완료 처리되어야 함")
 
         // 2. Redis에 재고가 정상적으로 업데이트되었는지 확인
         val finalStock = redissonClient.getAtomicLong("product_stock:$productId").get()
         assertEquals(
-            initialStock + cancelQuantity, finalStock, "배치 작업으로 cancelReservation이 실행되어 재고가 증가해야 함"
+            initialStock + cancelQuantity,
+            finalStock,
+            "배치 작업으로 cancelReservation이 실행되어 재고가 증가해야 함",
         )
     }
 
@@ -392,20 +409,23 @@ class ProductStockServiceImplIntegrationTest {
         // 첫 번째 실패 - Redis 연결 차단
         redisProxy.disable()
 
-        val exception = assertThrows<InfraException> {
-            productStockService.cancelReservation(StockChange(productId, cancelQuantity))
-        }
+        val exception =
+            assertThrows<InfraException> {
+                productStockService.cancelReservation(StockChange(productId, cancelQuantity))
+            }
         assertNotNull(exception)
 
         // 첫 번째 에러 로그 확인
-        val firstErrorLogs = jdbcTemplate.queryForList(
-            "SELECT * FROM exception_logs WHERE reason = ? AND is_executed = false", "STOCK_CHANGE"
-        )
+        val firstErrorLogs =
+            jdbcTemplate.queryForList(
+                "SELECT * FROM exception_logs WHERE reason = ? AND is_executed = false",
+                "STOCK_CHANGE",
+            )
         assertEquals(1, firstErrorLogs.size, "첫 번째 에러 로그가 저장되어야 함")
 
         // created_at을 1분 이전으로 설정
         jdbcTemplate.update(
-            "UPDATE exception_logs SET created_at = DATE_SUB(NOW(), INTERVAL 2 MINUTE) WHERE is_executed = false"
+            "UPDATE exception_logs SET created_at = DATE_SUB(NOW(), INTERVAL 2 MINUTE) WHERE is_executed = false",
         )
 
         // when - Redis가 여전히 장애 상태에서 배치 실행
@@ -415,15 +435,19 @@ class ProductStockServiceImplIntegrationTest {
 
         // then
         // 1. 네트워크 장애 시 setExecuted가 호출되지 않으므로 여전히 is_executed = false 상태
-        val stillPendingLogs = jdbcTemplate.queryForList(
-            "SELECT * FROM exception_logs WHERE reason = ? AND is_executed = false", "STOCK_CHANGE"
-        )
+        val stillPendingLogs =
+            jdbcTemplate.queryForList(
+                "SELECT * FROM exception_logs WHERE reason = ? AND is_executed = false",
+                "STOCK_CHANGE",
+            )
         assertEquals(1, stillPendingLogs.size, "네트워크 장애로 인해 재시도 대기 상태로 유지되어야 함")
 
         // 2. 실행 완료 처리된 로그는 없어야 함 (네트워크 장애는 다음 스케줄에서 재시도)
-        val executedLogs = jdbcTemplate.queryForList(
-            "SELECT * FROM exception_logs WHERE reason = ? AND is_executed = true", "STOCK_CHANGE"
-        )
+        val executedLogs =
+            jdbcTemplate.queryForList(
+                "SELECT * FROM exception_logs WHERE reason = ? AND is_executed = true",
+                "STOCK_CHANGE",
+            )
         assertEquals(0, executedLogs.size, "네트워크 장애 시에는 성공 처리하지 않고 다음 스케줄에서 재시도해야 함")
 
         println("재시도 대기 중인 에러 로그: ${stillPendingLogs.size}, 실행 완료된 로그: ${executedLogs.size}")
@@ -459,9 +483,11 @@ class ProductStockServiceImplIntegrationTest {
         }
 
         // 에러 로그 3개 확인
-        val errorLogsBeforeBatch = jdbcTemplate.queryForList(
-            "SELECT * FROM exception_logs WHERE reason = ? AND is_executed = false", "STOCK_CHANGE"
-        )
+        val errorLogsBeforeBatch =
+            jdbcTemplate.queryForList(
+                "SELECT * FROM exception_logs WHERE reason = ? AND is_executed = false",
+                "STOCK_CHANGE",
+            )
         assertEquals(3, errorLogsBeforeBatch.size, "3개의 에러 로그가 저장되어야 함")
 
         // Redis 연결 복구
@@ -469,7 +495,7 @@ class ProductStockServiceImplIntegrationTest {
 
         // created_at을 1분 이전으로 설정
         jdbcTemplate.update(
-            "UPDATE exception_logs SET created_at = DATE_SUB(NOW(), INTERVAL 2 MINUTE) WHERE is_executed = false"
+            "UPDATE exception_logs SET created_at = DATE_SUB(NOW(), INTERVAL 2 MINUTE) WHERE is_executed = false",
         )
 
         // when - 배치 작업 실행
@@ -479,9 +505,11 @@ class ProductStockServiceImplIntegrationTest {
 
         // then
         // 1. 모든 에러 로그가 실행 완료 처리
-        val errorLogsAfterBatch = jdbcTemplate.queryForList(
-            "SELECT * FROM exception_logs WHERE reason = ? AND is_executed = false", "STOCK_CHANGE"
-        )
+        val errorLogsAfterBatch =
+            jdbcTemplate.queryForList(
+                "SELECT * FROM exception_logs WHERE reason = ? AND is_executed = false",
+                "STOCK_CHANGE",
+            )
         assertEquals(0, errorLogsAfterBatch.size, "모든 에러 로그가 실행 완료 처리되어야 함")
 
         // 2. 모든 상품의 재고가 정상적으로 업데이트

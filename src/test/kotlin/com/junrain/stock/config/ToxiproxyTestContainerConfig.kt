@@ -12,12 +12,13 @@ class ToxiproxyTestContainerConfig {
 
         val toxiNetwork: Network = Network.newNetwork()
 
-        val toxiproxy = ToxiproxyContainer("ghcr.io/shopify/toxiproxy")
-            .apply {
-                withNetwork(toxiNetwork)
-                withReuse(true)
-                start()
-            }
+        val toxiproxy =
+            ToxiproxyContainer("ghcr.io/shopify/toxiproxy")
+                .apply {
+                    withNetwork(toxiNetwork)
+                    withReuse(true)
+                    start()
+                }
 
         val toxiproxyClient = ToxiproxyClient(toxiproxy.host, toxiproxy.controlPort)
     }

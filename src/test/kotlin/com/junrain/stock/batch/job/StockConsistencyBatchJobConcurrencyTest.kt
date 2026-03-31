@@ -1,9 +1,9 @@
-package com.junrain.stock.batch.job
+package com.junrain.stock.product.infra.batch
 
-import com.junrain.stock.config.jdbc.ErrorLogRepository
-import com.junrain.stock.config.jdbc.ErrorLogType
-import com.junrain.stock.product.command.domain.StockChange
 import com.fasterxml.jackson.core.type.TypeReference
+import com.junrain.stock.common.infra.jdbc.ErrorLogRepository
+import com.junrain.stock.common.infra.jdbc.ErrorLogType
+import com.junrain.stock.product.domain.StockChange
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -27,14 +27,13 @@ class StockConsistencyBatchJobConcurrencyTest {
     @Autowired
     private lateinit var jdbcTemplate: JdbcTemplate
 
-
     private val executionLog = ConcurrentLinkedQueue<ExecutionEvent>()
 
     data class ExecutionEvent(
         val type: EventType,
         val timestamp: Long,
         val threadName: String,
-        val jobKey: String
+        val jobKey: String,
     )
 
     enum class EventType { START, END, VETOED }
@@ -65,9 +64,10 @@ class StockConsistencyBatchJobConcurrencyTest {
         val jobDetail = createJobDetail("concurrency-test-job")
 
         // when: 거의 동시에 3번 트리거
-        val triggers = (0..2).map { i ->
-            createTrigger("trigger${i + 1}", jobDetail, delayMillis = i * 100L)
-        }
+        val triggers =
+            (0..2).map { i ->
+                createTrigger("trigger${i + 1}", jobDetail, delayMillis = i * 100L)
+            }
         scheduler.scheduleJob(jobDetail, triggers.toSet(), true)
 
         Thread.sleep(15_000)
@@ -79,13 +79,13 @@ class StockConsistencyBatchJobConcurrencyTest {
 
         assertTrue(
             startEvents.size + vetoedEvents.size >= 3,
-            "3개의 트리거가 모두 처리되어야 함 (시작 또는 거부)"
+            "3개의 트리거가 모두 처리되어야 함 (시작 또는 거부)",
         )
 
         assertEquals(
             startEvents.size,
             endEvents.size,
-            "시작된 모든 작업은 완료되어야 함"
+            "시작된 모든 작업은 완료되어야 함",
         )
 
         // 동시 실행이 없었는지 확인 (START와 END가 교차하지 않아야 함)
@@ -97,7 +97,7 @@ class StockConsistencyBatchJobConcurrencyTest {
                 assertTrue(
                     currentEnd <= nextStart,
                     "작업 ${i + 1}이 완료된 후 작업 ${i + 2}가 시작되어야 함. " +
-                            "작업 ${i + 1} 종료: $currentEnd, 작업 ${i + 2} 시작: $nextStart"
+                        "작업 ${i + 1} 종료: $currentEnd, 작업 ${i + 2} 시작: $nextStart",
                 )
             }
         }
@@ -121,8 +121,8 @@ class StockConsistencyBatchJobConcurrencyTest {
                 listenerName,
                 currentConcurrent,
                 maxConcurrent,
-                executionCount
-            )
+                executionCount,
+            ),
         )
 
         val jobDetail = createJobDetail("counter-test-job")
@@ -143,18 +143,18 @@ class StockConsistencyBatchJobConcurrencyTest {
         assertEquals(
             1,
             maxConcurrent.get(),
-            "@DisallowConcurrentExecution으로 인해 최대 동시 실행 수는 1이어야 함"
+            "@DisallowConcurrentExecution으로 인해 최대 동시 실행 수는 1이어야 함",
         )
 
         assertEquals(
             0,
             currentConcurrent.get(),
-            "모든 작업이 완료되어 현재 실행 중인 작업은 0이어야 함"
+            "모든 작업이 완료되어 현재 실행 중인 작업은 0이어야 함",
         )
 
         assertTrue(
             executionCount.get() >= 1,
-            "최소 1번 이상 실행되어야 함"
+            "최소 1번 이상 실행되어야 함",
         )
 
         scheduler.listenerManager.removeJobListener(listenerName)
@@ -178,7 +178,7 @@ class StockConsistencyBatchJobConcurrencyTest {
         assertEquals(
             StockConsistencyBatchJob::class.java,
             retrievedJob.jobClass,
-            "등록된 Job의 클래스가 StockConsistencyBatchJob이어야 함"
+            "등록된 Job의 클래스가 StockConsistencyBatchJob이어야 함",
         )
     }
 
@@ -189,18 +189,19 @@ class StockConsistencyBatchJobConcurrencyTest {
         errorLogRepository.saveErrorLog(
             requestKey = testRequestKey,
             reason = ErrorLogType.STOCK_CHANGE,
-            content = listOf(StockChange(productId = 1L, quantity = 10L))
+            content = listOf(StockChange(productId = 1L, quantity = 10L)),
         )
 
         setLogCreationTime(minutesAgo = 2, requestKey = testRequestKey)
 
-        val beforeLogs = errorLogRepository.findAllErrorLog(
-            reason = ErrorLogType.STOCK_CHANGE,
-            typeRef = object : TypeReference<List<StockChange>>() {}
-        )
+        val beforeLogs =
+            errorLogRepository.findAllErrorLog(
+                reason = ErrorLogType.STOCK_CHANGE,
+                typeRef = object : TypeReference<List<StockChange>>() {},
+            )
         assertTrue(
             beforeLogs.any { it.requestKey == testRequestKey },
-            "실행 전에는 에러 로그가 조회되어야 함"
+            "실행 전에는 에러 로그가 조회되어야 함",
         )
 
         val jobDetail = createJobDetail("execution-test-job")
@@ -211,34 +212,42 @@ class StockConsistencyBatchJobConcurrencyTest {
         Thread.sleep(5_000)
 
         // then
-        val afterLogs = errorLogRepository.findAllErrorLog(
-            reason = ErrorLogType.STOCK_CHANGE,
-            typeRef = object : TypeReference<List<StockChange>>() {}
-        )
+        val afterLogs =
+            errorLogRepository.findAllErrorLog(
+                reason = ErrorLogType.STOCK_CHANGE,
+                typeRef = object : TypeReference<List<StockChange>>() {},
+            )
 
         assertFalse(
             afterLogs.any { it.requestKey == testRequestKey },
-            "실행 후에는 is_executed=true로 변경되어 조회되지 않아야 함"
+            "실행 후에는 is_executed=true로 변경되어 조회되지 않아야 함",
         )
     }
 
     // Helper methods
-    private fun createErrorLogs(count: Int, prefix: String) {
+    private fun createErrorLogs(
+        count: Int,
+        prefix: String,
+    ) {
         repeat(count) { i ->
             errorLogRepository.saveErrorLog(
                 requestKey = "$prefix-$i",
                 reason = ErrorLogType.STOCK_CHANGE,
-                content = listOf(StockChange(productId = i.toLong(), quantity = 10L))
+                content = listOf(StockChange(productId = i.toLong(), quantity = 10L)),
             )
         }
     }
 
-    private fun setLogCreationTime(minutesAgo: Int, requestKey: String? = null) {
-        val sql = if (requestKey != null) {
-            "UPDATE exception_logs SET created_at = DATE_SUB(NOW(), INTERVAL $minutesAgo MINUTE) WHERE request_key = ?"
-        } else {
-            "UPDATE exception_logs SET created_at = DATE_SUB(NOW(), INTERVAL $minutesAgo MINUTE)"
-        }
+    private fun setLogCreationTime(
+        minutesAgo: Int,
+        requestKey: String? = null,
+    ) {
+        val sql =
+            if (requestKey != null) {
+                "UPDATE exception_logs SET created_at = DATE_SUB(NOW(), INTERVAL $minutesAgo MINUTE) WHERE request_key = ?"
+            } else {
+                "UPDATE exception_logs SET created_at = DATE_SUB(NOW(), INTERVAL $minutesAgo MINUTE)"
+            }
 
         if (requestKey != null) {
             jdbcTemplate.update(sql, requestKey)
@@ -247,26 +256,26 @@ class StockConsistencyBatchJobConcurrencyTest {
         }
     }
 
-    private fun createJobDetail(jobName: String): JobDetail {
-        return JobBuilder.newJob(StockConsistencyBatchJob::class.java)
+    private fun createJobDetail(jobName: String): JobDetail =
+        JobBuilder
+            .newJob(StockConsistencyBatchJob::class.java)
             .withIdentity(jobName, TEST_GROUP)
             .build()
-    }
 
     private fun createTrigger(
         triggerName: String,
         jobDetail: JobDetail,
-        delayMillis: Long = 0
-    ): Trigger {
-        return TriggerBuilder.newTrigger()
+        delayMillis: Long = 0,
+    ): Trigger =
+        TriggerBuilder
+            .newTrigger()
             .withIdentity(triggerName, TEST_GROUP)
             .forJob(jobDetail)
             .startAt(Date(System.currentTimeMillis() + delayMillis))
             .build()
-    }
 
-    private fun createExecutionLogListener(name: String): JobListener {
-        return object : JobListener {
+    private fun createExecutionLogListener(name: String): JobListener =
+        object : JobListener {
             override fun getName() = name
 
             override fun jobToBeExecuted(context: JobExecutionContext) {
@@ -275,7 +284,7 @@ class StockConsistencyBatchJobConcurrencyTest {
 
             override fun jobWasExecuted(
                 context: JobExecutionContext,
-                jobException: JobExecutionException?
+                jobException: JobExecutionException?,
             ) {
                 executionLog.add(createEvent(EventType.END, context))
             }
@@ -284,24 +293,25 @@ class StockConsistencyBatchJobConcurrencyTest {
                 executionLog.add(createEvent(EventType.VETOED, context))
             }
 
-            private fun createEvent(type: EventType, context: JobExecutionContext): ExecutionEvent {
-                return ExecutionEvent(
+            private fun createEvent(
+                type: EventType,
+                context: JobExecutionContext,
+            ): ExecutionEvent =
+                ExecutionEvent(
                     type = type,
                     timestamp = System.currentTimeMillis(),
                     threadName = Thread.currentThread().name,
-                    jobKey = context.jobDetail.key.toString()
+                    jobKey = context.jobDetail.key.toString(),
                 )
-            }
         }
-    }
 
     private fun createConcurrentCountListener(
         name: String,
         currentConcurrent: AtomicInteger,
         maxConcurrent: AtomicInteger,
-        executionCount: AtomicInteger
-    ): JobListener {
-        return object : JobListener {
+        executionCount: AtomicInteger,
+    ): JobListener =
+        object : JobListener {
             override fun getName() = name
 
             override fun jobToBeExecuted(context: JobExecutionContext) {
@@ -312,14 +322,13 @@ class StockConsistencyBatchJobConcurrencyTest {
 
             override fun jobWasExecuted(
                 context: JobExecutionContext,
-                jobException: JobExecutionException?
+                jobException: JobExecutionException?,
             ) {
                 currentConcurrent.decrementAndGet()
             }
 
             override fun jobExecutionVetoed(context: JobExecutionContext) {}
         }
-    }
 
     companion object {
         private const val TEST_GROUP = "test-group"
