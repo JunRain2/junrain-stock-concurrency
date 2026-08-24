@@ -4,9 +4,6 @@ import com.junrain.stock.domain.common.InfraException
 import com.junrain.stock.domain.product.StockChange
 import com.junrain.stock.infra.product.mysql.JpaProductRepository
 import com.junrain.stock.infra.product.redis.RedisStockRepository
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.*
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
@@ -18,8 +15,8 @@ import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.*
 import org.redisson.client.RedisConnectionException
 import org.redisson.client.RedisTimeoutException
+import java.util.concurrent.Executor
 
-@OptIn(ExperimentalCoroutinesApi::class)
 @ExtendWith(MockitoExtension::class)
 class ProductStockServiceImplTest {
     @Mock
@@ -28,20 +25,18 @@ class ProductStockServiceImplTest {
     @Mock
     private lateinit var jpaProductRepository: JpaProductRepository
 
-    private val testDispatcher = StandardTestDispatcher()
-    private lateinit var testScope: TestScope
     private lateinit var productStockService: ProductStockServiceImpl
+
+    /** 즉시 실행하되 예외는 삼킨다 - 별도 스레드에서 도는 실제 executor와 동일한 의미론 */
+    private val directExecutor = Executor { command -> runCatching { command.run() } }
 
     @BeforeEach
     fun setUp() {
-        Dispatchers.setMain(testDispatcher)
-        testScope = TestScope(testDispatcher)
-
         productStockService =
             ProductStockServiceImpl(
                 redisStockRepository = redisStockRepository,
                 jpaProductRepository = jpaProductRepository,
-                applicationScope = testScope,
+                asyncExecutor = directExecutor,
             )
     }
 
@@ -81,22 +76,21 @@ class ProductStockServiceImplTest {
     }
 
     @Test
-    fun `reserve 시 RedisTimeoutException이 발생하면 InfraException을 던져야 한다`() =
-        runTest {
-            // given
-            val changes = arrayOf(StockChange(productId = 1L, quantity = 10L))
-            val exception = InfraException(RedisTimeoutException())
+    fun `reserve 시 RedisTimeoutException이 발생하면 InfraException을 던져야 한다`() {
+        // given
+        val changes = arrayOf(StockChange(productId = 1L, quantity = 10L))
+        val exception = InfraException(RedisTimeoutException())
 
-            whenever(redisStockRepository.decreaseStock(any(), any())).thenThrow(exception)
+        whenever(redisStockRepository.decreaseStock(any(), any())).thenThrow(exception)
 
-            // when & then
-            val thrown =
-                assertThrows<InfraException> {
-                    productStockService.reserve(*changes)
-                }
+        // when & then
+        val thrown =
+            assertThrows<InfraException> {
+                productStockService.reserve(*changes)
+            }
 
-            assertEquals(exception.cause, thrown.cause)
-        }
+        assertEquals(exception.cause, thrown.cause)
+    }
 
     @Test
     fun `reserve 시 알 수 없는 예외가 발생하면 그대로 전파되어야 한다`() {
@@ -134,22 +128,21 @@ class ProductStockServiceImplTest {
     }
 
     @Test
-    fun `cancelReservation 시 RedisConnectionException이 발생하면 InfraException을 던져야 한다`() =
-        runTest {
-            // given
-            val changes = arrayOf(StockChange(productId = 1L, quantity = 10L))
-            val exception = InfraException(RedisConnectionException("Connection failed"))
+    fun `cancelReservation 시 RedisConnectionException이 발생하면 InfraException을 던져야 한다`() {
+        // given
+        val changes = arrayOf(StockChange(productId = 1L, quantity = 10L))
+        val exception = InfraException(RedisConnectionException("Connection failed"))
 
-            whenever(redisStockRepository.increaseStock(any(), any())).thenThrow(exception)
+        whenever(redisStockRepository.increaseStock(any(), any())).thenThrow(exception)
 
-            // when & then
-            val thrown =
-                assertThrows<InfraException> {
-                    productStockService.cancelReservation(*changes)
-                }
+        // when & then
+        val thrown =
+            assertThrows<InfraException> {
+                productStockService.cancelReservation(*changes)
+            }
 
-            assertEquals(exception.cause, thrown.cause)
-        }
+        assertEquals(exception.cause, thrown.cause)
+    }
 
     @Test
     fun `cancelReservation 시 RedisTimeoutException이 발생하면 InfraException을 던져야 한다`() {
@@ -188,26 +181,22 @@ class ProductStockServiceImplTest {
     // ==================== increase() 테스트 ====================
 
     @Test
-    fun `increase는 DB를 먼저 증가시키고 비동기로 Redis를 증가시켜야 한다`() =
-        runTest {
-            // given
-            val changes =
-                arrayOf(
-                    StockChange(productId = 1L, quantity = 10L),
-                    StockChange(productId = 2L, quantity = 5L),
-                )
+    fun `increase는 DB를 먼저 증가시키고 비동기로 Redis를 증가시켜야 한다`() {
+        // given
+        val changes =
+            arrayOf(
+                StockChange(productId = 1L, quantity = 10L),
+                StockChange(productId = 2L, quantity = 5L),
+            )
 
-            // when
-            productStockService.increase(*changes)
+        // when
+        productStockService.increase(*changes)
 
-            // 비동기 작업 완료 대기
-            testScope.advanceUntilIdle()
-
-            // then
-            verify(jpaProductRepository, times(1)).updateProductStock(1L, 10L)
-            verify(jpaProductRepository, times(1)).updateProductStock(2L, 5L)
-            verify(redisStockRepository, times(1)).increaseStock(check { assertNotNull(it) }, any(), any())
-        }
+        // then
+        verify(jpaProductRepository, times(1)).updateProductStock(1L, 10L)
+        verify(jpaProductRepository, times(1)).updateProductStock(2L, 5L)
+        verify(redisStockRepository, times(1)).increaseStock(check { assertNotNull(it) }, any(), any())
+    }
 
     @Test
     fun `increase 시 DB 업데이트가 실패하면 예외가 발생해야 한다`() {
@@ -228,26 +217,22 @@ class ProductStockServiceImplTest {
     }
 
     @Test
-    fun `increase 시 비동기 Redis 증가가 실패하면 DB는 증가되어야 한다`() =
-        runTest {
-            // given
-            val changes = arrayOf(StockChange(productId = 1L, quantity = 10L))
-            val exception = RedisConnectionException("Connection failed")
+    fun `increase 시 비동기 Redis 증가가 실패하면 DB는 증가되어야 한다`() {
+        // given
+        val changes = arrayOf(StockChange(productId = 1L, quantity = 10L))
+        val exception = RedisConnectionException("Connection failed")
 
-            whenever(redisStockRepository.increaseStock(any(), any())).thenThrow(exception)
+        whenever(redisStockRepository.increaseStock(any(), any())).thenThrow(exception)
 
-            // when
-            productStockService.increase(*changes)
+        // when
+        productStockService.increase(*changes)
 
-            // 비동기 작업 완료 대기 (예외가 발생하더라도)
-            testScope.advanceUntilIdle()
-
-            // then
-            // DB는 성공적으로 증가되어야 함 (비동기 Redis 실패와 무관)
-            verify(jpaProductRepository, times(1)).updateProductStock(1L, 10L)
-            // 비동기 내부에서 에러 로그 저장 시도 (실패 시 로그만 남음)
-            // Note: 비동기 코루틴 내부의 예외는 삼켜지므로 외부로 전파되지 않음
-        }
+        // then
+        // DB는 성공적으로 증가되어야 함 (비동기 Redis 실패와 무관)
+        verify(jpaProductRepository, times(1)).updateProductStock(1L, 10L)
+        // 비동기 내부에서 에러 로그 저장 시도 (실패 시 로그만 남음)
+        // Note: 동일 스레드 executor에서 실행되지만 예외는 삼켜지므로 외부로 전파되지 않음
+    }
 
     // ==================== decrease() 테스트 ====================
 

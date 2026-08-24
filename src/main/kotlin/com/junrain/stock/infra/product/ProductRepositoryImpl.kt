@@ -9,13 +9,11 @@ import com.junrain.stock.infra.product.mysql.JdbcProductRepository
 import com.junrain.stock.infra.product.mysql.JpaProductRepository
 import com.junrain.stock.infra.product.redis.RedisStockRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Repository
 import java.time.LocalDateTime
 import java.util.*
+import java.util.concurrent.Executor
 
 private val logger = KotlinLogging.logger { }
 
@@ -24,7 +22,7 @@ class ProductRepositoryImpl(
     private val jpaProductRepository: JpaProductRepository,
     private val jdbcProductRepository: JdbcProductRepository,
     private val redisStockRepository: RedisStockRepository,
-    private val applicationScope: CoroutineScope,
+    private val asyncExecutor: Executor,
 ) : ProductRepository {
     override fun save(product: Product): Product {
         val product =
@@ -42,30 +40,28 @@ class ProductRepositoryImpl(
 
     override fun saveAll(products: List<Product>): List<Result<Product>> {
         val createdAt = LocalDateTime.now()
+        val results = jdbcProductRepository.bulkInsert(products, createdAt)
+        val (ids, exceptions) = results.partition { it.isSuccess }
+
         val productResults =
-            runBlocking {
-                val results = jdbcProductRepository.bulkInsert(products, createdAt)
-                val (ids, exceptions) = results.partition { it.isSuccess }
+            buildList<Result<Product>> {
+                ids.mapNotNull { it.getOrNull() }.chunked(1000).forEach { chunk ->
+                    val foundProducts =
+                        jpaProductRepository
+                            .findByCreatedAtAndCodeIn(createdAt, chunk)
+                    val foundCodes = foundProducts.map { it.code }.toSet()
 
-                buildList<Result<Product>> {
-                    ids.mapNotNull { it.getOrNull() }.chunked(1000).forEach { chunk ->
-                        val foundProducts =
-                            jpaProductRepository
-                                .findByCreatedAtAndCodeIn(createdAt, chunk)
-                        val foundCodes = foundProducts.map { it.code }.toSet()
-
-                        foundProducts.forEach { product ->
-                            add(Result.success(product))
-                        }
-
-                        chunk.filterNot { code -> foundCodes.contains(code) }.forEach { missingCode ->
-                            add(Result.failure(ProductDuplicateCodeException(missingCode)))
-                        }
+                    foundProducts.forEach { product ->
+                        add(Result.success(product))
                     }
-                    exceptions.forEach { e ->
-                        e.exceptionOrNull()?.let { exception ->
-                            add(Result.failure(exception))
-                        }
+
+                    chunk.filterNot { code -> foundCodes.contains(code) }.forEach { missingCode ->
+                        add(Result.failure(ProductDuplicateCodeException(missingCode)))
+                    }
+                }
+                exceptions.forEach { e ->
+                    e.exceptionOrNull()?.let { exception ->
+                        add(Result.failure(exception))
                     }
                 }
             }
@@ -79,7 +75,7 @@ class ProductRepositoryImpl(
         productResults
             .mapNotNull { it.getOrNull() }
             .chunked(redisStockRepository.maxSize) { chunk ->
-                applicationScope.launch {
+                asyncExecutor.execute {
                     val stockChanges =
                         chunk.map {
                             StockChange(

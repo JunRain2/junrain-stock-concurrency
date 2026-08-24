@@ -6,8 +6,6 @@ import com.junrain.stock.infra.common.jdbc.ErrorLogType
 import com.junrain.stock.domain.product.StockChange
 import com.junrain.stock.domain.product.exception.ProductOutOfStockException
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import org.redisson.api.BatchOptions
 import org.redisson.api.RBatch
 import org.redisson.api.RedissonClient
@@ -16,6 +14,7 @@ import org.redisson.client.RedisException
 import org.redisson.client.RedisTimeoutException
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
+import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 
 private val logger = KotlinLogging.logger { }
@@ -24,7 +23,7 @@ private val logger = KotlinLogging.logger { }
 class RedisStockRepository(
     private val redissonClient: RedissonClient,
     private val errorLogRepository: ErrorLogRepository,
-    private val applicationScope: CoroutineScope,
+    private val asyncExecutor: Executor,
     @param:Value("\${spring.data.redis.batch-size:500}") val maxSize: Int,
 ) {
     fun setStockIfAbsent(
@@ -60,7 +59,7 @@ class RedisStockRepository(
             when (e) {
                 is RedisTimeoutException -> {
                     logger.error(e) { "에러 로그 저장 시작" }
-                    applicationScope.launch {
+                    asyncExecutor.execute {
                         saveRedisStockChangeException(requestKey, *stockChanges)
                     }
                     throw InfraException(e)
@@ -110,7 +109,7 @@ class RedisStockRepository(
         } catch (e: RedisException) {
             when (e) {
                 is RedisTimeoutException, is RedisConnectionException -> {
-                    applicationScope.launch {
+                    asyncExecutor.execute {
                         saveRedisStockChangeException(requestKey, *stockChanges)
                     }
                     throw InfraException(e)

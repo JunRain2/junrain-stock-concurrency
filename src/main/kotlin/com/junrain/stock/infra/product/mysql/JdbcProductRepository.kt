@@ -4,7 +4,6 @@ import com.junrain.stock.domain.product.Product
 import com.junrain.stock.domain.product.exception.ProductCreationException
 import com.junrain.stock.domain.product.vo.ProductCode
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.delay
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.dao.DataAccessException
 import org.springframework.dao.TransientDataAccessException
@@ -13,7 +12,6 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Component
 import java.sql.Timestamp
 import java.time.LocalDateTime
-import kotlin.time.Duration.Companion.milliseconds
 
 private val logger = KotlinLogging.logger {}
 
@@ -23,7 +21,7 @@ class JdbcProductRepository(
     @param:Value("\${bulk-insert.chunk-size}") private val chunkSize: Int,
     @param:Value("\${bulk-insert.retry-milliseconds}") private val retryDelays: List<Long>,
 ) {
-    suspend fun bulkInsert(
+    fun bulkInsert(
         products: List<Product>,
         createdAt: LocalDateTime = LocalDateTime.now(),
     ): List<Result<ProductCode>> =
@@ -42,7 +40,7 @@ class JdbcProductRepository(
             for (delay in retryDelays) {
                 if (retry.isEmpty()) break
 
-                delay(delay.milliseconds)
+                Thread.sleep(delay)
                 val tmp = mutableListOf<Product>()
                 retry.chunked(chunkSize).forEach { chunked ->
                     try {

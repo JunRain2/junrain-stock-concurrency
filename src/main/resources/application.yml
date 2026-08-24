@@ -2,6 +2,10 @@ spring:
   application:
     name: stock-concurrency
 
+  threads:
+    virtual:
+      enabled: true
+
   jpa:
     show-sql: true
     hibernate:

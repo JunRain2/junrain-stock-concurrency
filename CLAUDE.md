@@ -2,7 +2,7 @@
 
 ## 프로젝트 개요
 - **목적**: 동시성 환경에서의 재고 관리 시스템 성능 최적화
-- **주요 기술**: Kotlin 1.9.25, Spring Boot 3.5.7, Java 21 (Virtual Threads), MySQL, Redis, Kotlin Coroutines
+- **주요 기술**: Kotlin 1.9.25, Spring Boot 3.5.7, Java 21 (Virtual Threads), MySQL, Redis
 - **구조**: 단일 모듈 모놀리스
 
 ## 아키텍처
@@ -27,7 +27,7 @@ src/main/kotlin/com/junrain/stock/
 │       ├── vo/                         # ProductCode
 │       └── exception/                  # ProductNotFoundException, ProductOutOfStockException 등
 └── infra/                              # 아웃바운드 어댑터
-    ├── common/                         # CoroutineConfig, ErrorLogRepository, AuditingConfig, QueryDslConfig, RedisLockRepositoryImpl
+    ├── common/                         # AsyncExecutorConfig, ErrorLogRepository, AuditingConfig, QueryDslConfig, RedisLockRepositoryImpl
     └── product/                        # ProductRepositoryImpl, ProductStockServiceImpl, OwnerValidationServiceImpl
         ├── mysql/                      # JdbcProductRepository, JpaProductRepository
         ├── redis/                      # RedisStockRepository
@@ -65,7 +65,6 @@ src/main/kotlin/com/junrain/stock/
 ## 선호 라이브러리
 - **Redisson (3.52.0)** - Redis 분산락
 - **QueryDSL (5.0.0) with kapt** - 타입 안전 쿼리
-- **Kotlin Coroutines (1.8.1)** - 비동기 처리
 - **TestContainers (1.20.4)** - 통합 테스트 (MySQL, Redis, Toxiproxy)
 - **Micrometer Prometheus** - 메트릭 수집
 - **kotlin-logging (7.0.3)** - 구조화된 로깅
@@ -78,7 +77,9 @@ src/main/kotlin/com/junrain/stock/
   - `ErrorCode` enum으로 에러 코드/메시지/HTTP 상태 관리
   - `ApiResponse<T>` 래퍼로 통일된 응답 포맷 사용
   - 도메인 검증 실패 시 `require()` 사용 (한글 메시지)
-- **비동기**: `suspend` 함수와 Kotlin coroutines 사용
+- **비동기**: Virtual Thread `Executor`(`asyncExecutor` 빈) 주입해서 사용. `suspend`/코루틴 금지
+  - 운영: `Executors.newVirtualThreadPerTaskExecutor()` (`AsyncExecutorConfig`, `@Profile("!test")`)
+  - 테스트: 호출 스레드 즉시 실행 + 예외 삼킴 (`TestAsyncExecutorConfig`, `@Profile("test")`)
 - **동시성**: Virtual Threads 활성화 (`spring.threads.virtual.enabled=true`)
 - **Value Objects**: 불변(immutable) 설계, Operator overloading 활용 (예: `Money`)
 - **Batch 작업**: Bulk insert/update 시 chunk 단위로 처리

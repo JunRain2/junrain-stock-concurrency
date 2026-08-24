@@ -4,16 +4,15 @@ import com.junrain.stock.domain.product.ProductStockService
 import com.junrain.stock.domain.product.StockChange
 import com.junrain.stock.infra.product.mysql.JpaProductRepository
 import com.junrain.stock.infra.product.redis.RedisStockRepository
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import org.springframework.stereotype.Service
 import java.util.*
+import java.util.concurrent.Executor
 
 @Service
 class ProductStockServiceImpl(
     private val redisStockRepository: RedisStockRepository,
     private val jpaProductRepository: JpaProductRepository,
-    private val applicationScope: CoroutineScope,
+    private val asyncExecutor: Executor,
 ) : ProductStockService {
     override fun reserve(vararg changes: StockChange) {
         val requestKey = UUID.randomUUID().toString()
@@ -49,7 +48,7 @@ class ProductStockServiceImpl(
         }
 
         // Redis 증가 -> 비동기로 실행
-        applicationScope.launch {
+        asyncExecutor.execute {
             increaseRedisStock(*changes)
         }
     }

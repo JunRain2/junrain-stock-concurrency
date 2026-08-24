@@ -6,10 +6,6 @@ import com.junrain.stock.domain.product.ProductStockService
 import com.junrain.stock.domain.product.StockChange
 import com.junrain.stock.infra.product.batch.StockConsistencyBatchJob
 import eu.rekawek.toxiproxy.model.ToxicDirection
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
@@ -23,6 +19,8 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.data.redis.RedisConnectionFailureException
 import org.springframework.jdbc.core.JdbcTemplate
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
 
 @SpringBootTest
 class ProductStockServiceImplIntegrationTest {
@@ -205,7 +203,7 @@ class ProductStockServiceImplIntegrationTest {
                 }
             assertNotNull(exception)
 
-            // Dispatchers.Unconfined로 인해 즉시 실행되므로 바로 확인 가능
+            // 테스트 프로파일의 동일 스레드 executor로 인해 즉시 실행되므로 바로 확인 가능
             val errorLogs = jdbcTemplate.queryForList("SELECT * FROM exception_logs")
             assertTrue(errorLogs.size >= 1, "타임아웃 발생 시 에러 로그가 저장되어야 함")
 
@@ -219,38 +217,40 @@ class ProductStockServiceImplIntegrationTest {
 // ==================== 동시성 테스트 ====================
 
     @Test
-    fun `여러 스레드에서 동시에 재고를 예약해도 정합성이 유지되어야 한다`() =
-        runTest {
-            // given
-            val productId = 1L
-            val initialStock = 1000L
-            val reserveQuantity = 1L
-            val concurrentRequests = 50
+    fun `여러 스레드에서 동시에 재고를 예약해도 정합성이 유지되어야 한다`() {
+        // given
+        val productId = 1L
+        val initialStock = 1000L
+        val reserveQuantity = 1L
+        val concurrentRequests = 50
 
-            redissonClient.getAtomicLong("product_stock:$productId").set(initialStock)
+        redissonClient.getAtomicLong("product_stock:$productId").set(initialStock)
 
-            // when - 동시에 50개의 예약 요청
-            val jobs =
-                List(concurrentRequests) {
-                    async(Dispatchers.Default) {
-                        try {
-                            productStockService.reserve(StockChange(productId, reserveQuantity))
-                            true
-                        } catch (e: Exception) {
-                            false
-                        }
+        // when - 동시에 50개의 예약 요청
+        val tasks =
+            List(concurrentRequests) {
+                Callable {
+                    try {
+                        productStockService.reserve(StockChange(productId, reserveQuantity))
+                        true
+                    } catch (e: Exception) {
+                        false
                     }
                 }
+            }
 
-            val results = jobs.awaitAll()
-            val successCount = results.count { it }
+        val results =
+            Executors.newVirtualThreadPerTaskExecutor().use { executor ->
+                executor.invokeAll(tasks).map { it.get() }
+            }
+        val successCount = results.count { it }
 
-            // then
-            val finalStock = redissonClient.getAtomicLong("product_stock:$productId").get()
-            // 재고가 정확히 감소해야 함
-            assertEquals(initialStock - (successCount * reserveQuantity), finalStock)
-            println("Initial: $initialStock, Success: $successCount, Final: $finalStock")
-        }
+        // then
+        val finalStock = redissonClient.getAtomicLong("product_stock:$productId").get()
+        // 재고가 정확히 감소해야 함
+        assertEquals(initialStock - (successCount * reserveQuantity), finalStock)
+        println("Initial: $initialStock, Success: $successCount, Final: $finalStock")
+    }
 
 // ==================== 재고 부족 시나리오 ====================
 
@@ -297,7 +297,7 @@ class ProductStockServiceImplIntegrationTest {
             }
         assertNotNull(exception)
 
-        // Dispatchers.Unconfined로 인해 즉시 실행되므로 바로 확인 가능
+        // 테스트 프로파일의 동일 스레드 executor로 인해 즉시 실행되므로 바로 확인 가능
         val errorLogs =
             jdbcTemplate.queryForList(
                 "SELECT * FROM exception_logs WHERE reason = ?",
