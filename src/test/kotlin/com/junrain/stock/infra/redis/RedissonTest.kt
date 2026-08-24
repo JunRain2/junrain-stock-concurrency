@@ -1,4 +1,4 @@
-package com.junrain.stock.infra.product.redis
+package com.junrain.stock.infra.redis
 
 import com.junrain.stock.config.RedisTestContainersConfig.Companion.redisProxy
 import eu.rekawek.toxiproxy.model.ToxicDirection

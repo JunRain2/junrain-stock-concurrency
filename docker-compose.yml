@@ -31,35 +31,5 @@ services:
       timeout: 5s
       retries: 5
 
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: stock-concurrency-app
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/foo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&rewriteBatchedStatements=true
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: 1234
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./src/main/resources/application.yml:/app/config/application.yml:ro
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    # EC2 t2.micro equivalent: 1 vCPU, 1GB RAM
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
-
 volumes:
   mysql-data:

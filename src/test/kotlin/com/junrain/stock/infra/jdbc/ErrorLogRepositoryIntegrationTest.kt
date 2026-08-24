@@ -1,9 +1,9 @@
-package com.junrain.stock.infra.common.jdbc
+package com.junrain.stock.infra.jdbc
 
 import com.fasterxml.jackson.core.type.TypeReference
-import com.junrain.stock.application.product.port.StockChange
 import com.junrain.stock.infra.common.jdbc.ErrorLogRepository
 import com.junrain.stock.infra.common.jdbc.ErrorLogType
+import com.junrain.stock.infra.product.StockDelta
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -34,8 +34,8 @@ class ErrorLogRepositoryIntegrationTest {
         val reason = ErrorLogType.STOCK_CHANGE
         val content =
             listOf(
-                StockChange(productId = 1L, quantity = 10L),
-                StockChange(productId = 2L, quantity = 5L),
+                StockDelta(productId = 1L, quantity = 10L),
+                StockDelta(productId = 2L, quantity = 5L),
             )
 
         // when
@@ -57,11 +57,11 @@ class ErrorLogRepositoryIntegrationTest {
     }
 
     @Test
-    fun `saveErrorLog는 단일 StockChange를 저장할 수 있다`() {
+    fun `saveErrorLog는 단일 StockDelta를 저장할 수 있다`() {
         // given
         val requestKey = "single-change-456"
         val reason = ErrorLogType.STOCK_CHANGE
-        val content = StockChange(productId = 1L, quantity = 10L)
+        val content = StockDelta(productId = 1L, quantity = 10L)
 
         // when
         errorLogRepository.saveErrorLog(requestKey, reason, content)
@@ -81,7 +81,7 @@ class ErrorLogRepositoryIntegrationTest {
         // given
         val requestKey = "duplicate-789"
         val reason = ErrorLogType.STOCK_CHANGE
-        val content = StockChange(productId = 1L, quantity = 10L)
+        val content = StockDelta(productId = 1L, quantity = 10L)
 
         // when - 첫 번째 저장
         errorLogRepository.saveErrorLog(requestKey, reason, content)
@@ -106,8 +106,8 @@ class ErrorLogRepositoryIntegrationTest {
         val reason = ErrorLogType.STOCK_CHANGE
         val content =
             listOf(
-                StockChange(productId = 1L, quantity = 10L),
-                StockChange(productId = 2L, quantity = 5L),
+                StockDelta(productId = 1L, quantity = 10L),
+                StockDelta(productId = 2L, quantity = 5L),
             )
 
         // when
@@ -135,8 +135,8 @@ class ErrorLogRepositoryIntegrationTest {
         val requestKey1 = "find-test-1"
         val requestKey2 = "find-test-2"
         val reason = ErrorLogType.STOCK_CHANGE
-        val content1 = listOf(StockChange(productId = 1L, quantity = 10L))
-        val content2 = listOf(StockChange(productId = 2L, quantity = 5L))
+        val content1 = listOf(StockDelta(productId = 1L, quantity = 10L))
+        val content2 = listOf(StockDelta(productId = 2L, quantity = 5L))
 
         errorLogRepository.saveErrorLog(requestKey1, reason, content1)
         errorLogRepository.saveErrorLog(requestKey2, reason, content2)
@@ -152,7 +152,7 @@ class ErrorLogRepositoryIntegrationTest {
         val errorLogs =
             errorLogRepository.findAllErrorLog(
                 reason = reason,
-                typeRef = object : TypeReference<List<StockChange>>() {},
+                typeRef = object : TypeReference<List<StockDelta>>() {},
             )
 
         // then
@@ -168,7 +168,7 @@ class ErrorLogRepositoryIntegrationTest {
         val requestKey1 = "executed-false"
         val requestKey2 = "executed-true"
         val reason = ErrorLogType.STOCK_CHANGE
-        val content = listOf(StockChange(productId = 1L, quantity = 10L))
+        val content = listOf(StockDelta(productId = 1L, quantity = 10L))
 
         errorLogRepository.saveErrorLog(requestKey1, reason, content)
         errorLogRepository.saveErrorLog(requestKey2, reason, content)
@@ -190,7 +190,7 @@ class ErrorLogRepositoryIntegrationTest {
         val errorLogs =
             errorLogRepository.findAllErrorLog(
                 reason = reason,
-                typeRef = object : TypeReference<List<StockChange>>() {},
+                typeRef = object : TypeReference<List<StockDelta>>() {},
             )
 
         // then
@@ -204,7 +204,7 @@ class ErrorLogRepositoryIntegrationTest {
         // given
         val requestKey = "recent-data"
         val reason = ErrorLogType.STOCK_CHANGE
-        val content = listOf(StockChange(productId = 1L, quantity = 10L))
+        val content = listOf(StockDelta(productId = 1L, quantity = 10L))
 
         errorLogRepository.saveErrorLog(requestKey, reason, content)
 
@@ -212,7 +212,7 @@ class ErrorLogRepositoryIntegrationTest {
         val errorLogs =
             errorLogRepository.findAllErrorLog(
                 reason = reason,
-                typeRef = object : TypeReference<List<StockChange>>() {},
+                typeRef = object : TypeReference<List<StockDelta>>() {},
             )
 
         // then
@@ -227,8 +227,8 @@ class ErrorLogRepositoryIntegrationTest {
         val reason = ErrorLogType.STOCK_CHANGE
         val content =
             listOf(
-                StockChange(productId = 1L, quantity = 10L),
-                StockChange(productId = 2L, quantity = 5L),
+                StockDelta(productId = 1L, quantity = 10L),
+                StockDelta(productId = 2L, quantity = 5L),
             )
 
         errorLogRepository.saveErrorLog(requestKey, reason, content)
@@ -243,7 +243,7 @@ class ErrorLogRepositoryIntegrationTest {
         val errorLogs =
             errorLogRepository.findAllErrorLog(
                 reason = reason,
-                typeRef = object : TypeReference<List<StockChange>>() {},
+                typeRef = object : TypeReference<List<StockDelta>>() {},
             )
 
         // then
@@ -265,7 +265,7 @@ class ErrorLogRepositoryIntegrationTest {
         val requestKey2 = "sort-test-2"
         val requestKey3 = "sort-test-3"
         val reason = ErrorLogType.STOCK_CHANGE
-        val content = listOf(StockChange(productId = 1L, quantity = 10L))
+        val content = listOf(StockDelta(productId = 1L, quantity = 10L))
 
         errorLogRepository.saveErrorLog(requestKey1, reason, content)
         Thread.sleep(100)
@@ -285,7 +285,7 @@ class ErrorLogRepositoryIntegrationTest {
         val errorLogs =
             errorLogRepository.findAllErrorLog(
                 reason = reason,
-                typeRef = object : TypeReference<List<StockChange>>() {},
+                typeRef = object : TypeReference<List<StockDelta>>() {},
             )
 
         // then
@@ -310,7 +310,7 @@ class ErrorLogRepositoryIntegrationTest {
         // given
         val requestKey = "execute-test"
         val reason = ErrorLogType.STOCK_CHANGE
-        val content = listOf(StockChange(productId = 1L, quantity = 10L))
+        val content = listOf(StockDelta(productId = 1L, quantity = 10L))
 
         errorLogRepository.saveErrorLog(requestKey, reason, content)
 
@@ -354,8 +354,8 @@ class ErrorLogRepositoryIntegrationTest {
         val reason = ErrorLogType.STOCK_CHANGE
         val content =
             listOf(
-                StockChange(productId = 1L, quantity = 10L),
-                StockChange(productId = 2L, quantity = 5L),
+                StockDelta(productId = 1L, quantity = 10L),
+                StockDelta(productId = 2L, quantity = 5L),
             )
 
         // when 1 - 에러 로그 저장
@@ -371,7 +371,7 @@ class ErrorLogRepositoryIntegrationTest {
         val errorLogs =
             errorLogRepository.findAllErrorLog(
                 reason = reason,
-                typeRef = object : TypeReference<List<StockChange>>() {},
+                typeRef = object : TypeReference<List<StockDelta>>() {},
             )
 
         // then 1 - 조회됨
@@ -386,7 +386,7 @@ class ErrorLogRepositoryIntegrationTest {
         val afterExecutedLogs =
             errorLogRepository.findAllErrorLog(
                 reason = reason,
-                typeRef = object : TypeReference<List<StockChange>>() {},
+                typeRef = object : TypeReference<List<StockDelta>>() {},
             )
 
         // then 2 - 실행 표시 후에는 조회되지 않음
