@@ -4,6 +4,8 @@ import com.junrain.stock.config.RedisTestContainersConfig.Companion.redisProxy
 import eu.rekawek.toxiproxy.model.ToxicDirection
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.assertThrows
 import org.redisson.api.BatchOptions
 import org.redisson.api.RedissonClient
@@ -108,57 +110,6 @@ class RedissonTest
         }
 
         @Test
-        fun `batch() 중 네트워크 Timeout 장애가 발생했을 경우`() {
-            val key = "product:1"
-
-            val batch =
-                redissonClient.createBatch(
-                    BatchOptions
-                        .defaults()
-                        .executionMode(BatchOptions.ExecutionMode.IN_MEMORY)
-                        .responseTimeout(1, TimeUnit.SECONDS),
-                )
-            batch.getAtomicLong(key).addAndGetAsync(1L)
-
-            // DOWNSTREAM -> 응답 자체가 안옴
-            val toxi = redisProxy.toxics().timeout("timeout", ToxicDirection.DOWNSTREAM, 0)
-
-            val error = assertThrows<RedisResponseTimeoutException> { batch.execute() }
-            logger.info { "error message: ${error.message}" }
-
-            toxi.remove()
-
-            val result = redissonClient.getAtomicLong(key).get()
-            // 1회 + 재시도 기본값 4회 = 5회
-            assertEquals(5L, result)
-        }
-
-        @Test
-        fun `batch() 중 네트워크 connection 장애가 발생했을 경우`() {
-            val key = "product:1"
-
-            val batch =
-                redissonClient.createBatch(
-                    BatchOptions
-                        .defaults()
-                        .executionMode(BatchOptions.ExecutionMode.IN_MEMORY)
-                        .responseTimeout(1, TimeUnit.SECONDS),
-                )
-            batch.getAtomicLong(key).addAndGetAsync(1L)
-
-            // 서버 자체가 닫힌 경우 -> 프록시를 닫음
-            redisProxy.disable()
-
-            val error = assertThrows<RedisConnectionException> { batch.execute() }
-            logger.info { "error message: ${error.message}" }
-
-            redisProxy.enable()
-
-            val result = redissonClient.getAtomicLong(key).get()
-            assertEquals(0L, result)
-        }
-
-        @Test
         fun `RedissonAtomicLong은 key가 없는 경우 0을 반환`() {
             val randomKey =
                 run {
@@ -167,26 +118,6 @@ class RedissonTest
                 }
 
             assertEquals(0, redissonClient.getAtomicLong(randomKey).get())
-        }
-
-        @Test
-        fun `RedisTimeoutException이 터졌지만 Redis에 데이터가 반영이 안된 경우`() {
-            val key = "product:1"
-            val value = 10L
-
-            val toxi = redisProxy.toxics().timeout("cut", ToxicDirection.UPSTREAM, 0)
-
-            val error =
-                assertThrows<RedisResponseTimeoutException> {
-                    redissonClient.getAtomicLong(key).set(value)
-                }
-            logger.info { "error message: ${error.message}" }
-
-            toxi.remove()
-            val result = redissonClient.getAtomicLong(key).get()
-
-            // 데이터가 반영이 안돼있어야 함
-            assertEquals(0, result)
         }
 
         @Test
@@ -214,6 +145,84 @@ class RedissonTest
 
             assertThrows<RedisException> {
                 redissonClient.getAtomicLong(key).get()
+            }
+        }
+
+        /**
+         * Toxiproxy로 실제 네트워크를 끊는 테스트. 프록시를 공유하므로 기본 test 실행에서는 빼고 faultTest로 따로 돌린다.
+         */
+        @Nested
+        @Tag("fault")
+        inner class NetworkFault {
+            @Test
+            fun `batch() 중 네트워크 Timeout 장애가 발생했을 경우`() {
+                val key = "product:1"
+
+                val batch =
+                    redissonClient.createBatch(
+                        BatchOptions
+                            .defaults()
+                            .executionMode(BatchOptions.ExecutionMode.IN_MEMORY)
+                            .responseTimeout(1, TimeUnit.SECONDS),
+                    )
+                batch.getAtomicLong(key).addAndGetAsync(1L)
+
+                // DOWNSTREAM -> 응답 자체가 안옴
+                val toxi = redisProxy.toxics().timeout("timeout", ToxicDirection.DOWNSTREAM, 0)
+
+                val error = assertThrows<RedisResponseTimeoutException> { batch.execute() }
+                logger.info { "error message: ${error.message}" }
+
+                toxi.remove()
+
+                val result = redissonClient.getAtomicLong(key).get()
+                // 1회 + 재시도 기본값 4회 = 5회
+                assertEquals(5L, result)
+            }
+
+            @Test
+            fun `batch() 중 네트워크 connection 장애가 발생했을 경우`() {
+                val key = "product:1"
+
+                val batch =
+                    redissonClient.createBatch(
+                        BatchOptions
+                            .defaults()
+                            .executionMode(BatchOptions.ExecutionMode.IN_MEMORY)
+                            .responseTimeout(1, TimeUnit.SECONDS),
+                    )
+                batch.getAtomicLong(key).addAndGetAsync(1L)
+
+                // 서버 자체가 닫힌 경우 -> 프록시를 닫음
+                redisProxy.disable()
+
+                val error = assertThrows<RedisConnectionException> { batch.execute() }
+                logger.info { "error message: ${error.message}" }
+
+                redisProxy.enable()
+
+                val result = redissonClient.getAtomicLong(key).get()
+                assertEquals(0L, result)
+            }
+
+            @Test
+            fun `RedisTimeoutException이 터졌지만 Redis에 데이터가 반영이 안된 경우`() {
+                val key = "product:1"
+                val value = 10L
+
+                val toxi = redisProxy.toxics().timeout("cut", ToxicDirection.UPSTREAM, 0)
+
+                val error =
+                    assertThrows<RedisResponseTimeoutException> {
+                        redissonClient.getAtomicLong(key).set(value)
+                    }
+                logger.info { "error message: ${error.message}" }
+
+                toxi.remove()
+                val result = redissonClient.getAtomicLong(key).get()
+
+                // 데이터가 반영이 안돼있어야 함
+                assertEquals(0, result)
             }
         }
     }

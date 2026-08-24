@@ -71,3 +71,16 @@ tasks.withType<Test> {
     useJUnitPlatform()
     systemProperty("spring.profiles.active", "test") // test 설정을 사용
 }
+
+// Toxiproxy로 공유 프록시를 끊는 테스트는 다른 테스트의 커넥션까지 흔든다. 기본 test에서 빼고 따로 돌린다.
+tasks.test {
+    useJUnitPlatform { excludeTags("fault") }
+}
+
+tasks.register<Test>("faultTest") {
+    group = "verification"
+    description = "Toxiproxy 장애 주입 테스트만 실행"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform { includeTags("fault") }
+}

@@ -6,6 +6,8 @@ import com.junrain.stock.domain.product.exception.StockUnavailableException
 import com.junrain.stock.domain.product.exception.StockUnstableException
 import eu.rekawek.toxiproxy.model.ToxicDirection
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.assertThrows
 import org.redisson.api.RScript
 import org.redisson.api.RedissonClient
@@ -100,34 +102,38 @@ class RedisStockWriterImplTest
                 quantity.toString(),
             )
 
-        @Test
-        fun `Redis 응답이 끊기면 재시도 가능 예외로 바꾸고 pending만 남는다`() {
-            seed(1, 10)
-            val offset = opLogOffset()
+        @Nested
+        @Tag("fault")
+        inner class NetworkFault {
+            @Test
+            fun `Redis 응답이 끊기면 재시도 가능 예외로 바꾸고 pending만 남는다`() {
+                seed(1, 10)
+                val offset = opLogOffset()
 
-            val toxic = redisProxy.toxics().timeout("timeout", ToxicDirection.DOWNSTREAM, 0)
-            try {
-                assertThrows<StockUnstableException> { stockWriter.decrease(listOf(change(1, 1))) }
-            } finally {
-                toxic.remove()
-                awaitConnectionRecovered()
+                val toxic = redisProxy.toxics().timeout("timeout", ToxicDirection.DOWNSTREAM, 0)
+                try {
+                    assertThrows<StockUnstableException> { stockWriter.decrease(listOf(change(1, 1))) }
+                } finally {
+                    toxic.remove()
+                    awaitConnectionRecovered()
+                }
+
+                val appended = opLogSince(offset)
+                assertTrue(appended.contains("pending"), "pending 기록이 남아야 한다")
+                assertTrue(!appended.contains("done"), "적용 여부를 모르므로 done은 없어야 한다")
             }
 
-            val appended = opLogSince(offset)
-            assertTrue(appended.contains("pending"), "pending 기록이 남아야 한다")
-            assertTrue(!appended.contains("done"), "적용 여부를 모르므로 done은 없어야 한다")
-        }
-
-        /**
-         * 토식을 걷어도 커넥션 풀은 곧바로 회복되지 않는다.
-         * 프록시를 테스트 클래스끼리 공유하므로, 상처 난 커넥션을 다음 테스트에 넘기지 않고 여기서 회복시킨다.
-         */
-        private fun awaitConnectionRecovered() {
-            repeat(RECOVERY_ATTEMPTS) {
-                runCatching { redissonClient.keys.count() }.onSuccess { return }
-                Thread.sleep(RECOVERY_INTERVAL_MILLIS)
+            /**
+             * 토식을 걷어도 커넥션 풀은 곧바로 회복되지 않는다.
+             * 프록시를 테스트 클래스끼리 공유하므로, 상처 난 커넥션을 다음 테스트에 넘기지 않고 여기서 회복시킨다.
+             */
+            private fun awaitConnectionRecovered() {
+                repeat(RECOVERY_ATTEMPTS) {
+                    runCatching { redissonClient.keys.count() }.onSuccess { return }
+                    Thread.sleep(RECOVERY_INTERVAL_MILLIS)
+                }
+                error("Redis 커넥션이 회복되지 않았습니다.")
             }
-            error("Redis 커넥션이 회복되지 않았습니다.")
         }
 
         private fun opLogFile() = File("logs/stock-op.log")
