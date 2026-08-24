@@ -7,48 +7,55 @@
 
 ## 아키텍처
 
-### 패키지 구조 (Aggregate-First)
+### 패키지 구조 (Layer-First)
 ```
 src/main/kotlin/com/junrain/stock/
-├── StockConcurrencyApplication.kt     # 단일 진입점
-├── common/                             # 공통 모듈
-│   ├── domain/                         # BaseEntity, Money, Address, ErrorCode, BusinessException, LockRepository
-│   ├── dto/                            # ApiResponse, CursorPageResponse, BatchResult
-│   └── infra/                          # CoroutineConfig, AuditingConfig, QueryDslConfig, RedisLockRepositoryImpl, ErrorLogRepository, ApiControllerAdvice
-├── product/                            # 상품/재고 Aggregate
-│   ├── domain/                         # Product, ProductRepository, ProductStockService, OwnerValidationService, vo/ProductCode
-│   │   └── exception/                  # ProductNotFoundException, ProductOutOfStockException 등
-│   ├── application/                    # ProductOrderService, ProductRegisterService, ProductQueryService, ProductQueryRepository
-│   │   ├── command/                    # ProductOrderDto, ProductPurchaseDto, ProductRegisterDto
-│   │   └── query/                      # ProductDetailResult, ProductPageQuery, ProductPageResult
-│   ├── infra/                          # OwnerValidationServiceImpl, ProductRepositoryImpl, ProductStockServiceImpl
-│   │   ├── mysql/                      # JdbcProductRepository, JpaProductRepository
-│   │   ├── redis/                      # RedisStockRepository
-│   │   ├── querydsl/                   # QueryDslProductQueryRepositoryImpl, QueryDslProductSorter
-│   │   └── batch/                      # StockConsistencyBatchJob, StockConsistencyBatchScheduler
-│   └── controller/                     # ProductCommandController, ProductQueryController, dto/*
-├── order/                              # 주문 Aggregate
-│   ├── domain/                         # Order, OrderItem, OrderRepository, ProductCatalogService, vo/OrderCode, vo/Orderer
-│   │   └── exception/                  # OrderInvalidException, OrderNotFoudException
-│   ├── application/                    # OrderPlacementService
-│   │   └── command/                    # OrderPlacementDto
-│   └── infra/                          # ProductCatalogServiceImpl, event/OrderPaidEventHandler
-├── cart/                               # 장바구니 Aggregate
-│   ├── domain/                         # CartItem, CartItemRepository, StockAvailabilityService
-│   │   └── exception/                  # CartItemNotFoundException
-│   ├── application/                    # CartAddProductService, CartItemQuantityUpdateService
-│   │   └── command/                    # CartAddProductCommand, CartAddProductResult 등
-│   └── infra/                          # StockAvailabilityServiceImpl
-└── member/                             # 회원 Aggregate
-    ├── domain/                         # Member, MemberRepository, MemberType
-    │   └── exception/                  # MemberNotFoundException
-    └── application/                    # MemberRoleVerificationService
+├── StockConcurrencyApplication.kt      # 단일 진입점
+├── ui/                                 # 인바운드 어댑터
+│   ├── common/                         # ApiResponse, ApiControllerAdvice
+│   └── product/                        # ProductCommandController, ProductQueryController
+│       └── dto/                        # ProductRegisterDto, ProductDetailResponse, ProductPageRequest, ProductPageResponse
+├── application/                        # 유스케이스
+│   ├── common/                         # CursorPageResponse
+│   ├── member/                         # VerifyMemberIsSeller
+│   └── product/                        # RegisterProducts, GetProductDetail, GetProductPage, ProductReader(조회 포트)
+│       └── query/                      # ProductSorter
+├── domain/                             # 순수 비즈니스 로직
+│   ├── common/                         # BaseEntity, BaseException, ErrorCode, Money, LockRepository
+│   ├── member/                         # Member, MemberRepository, MemberType, exception/*
+│   └── product/                        # Product, ProductRepository, ProductStockService, OwnerValidationService, ProductCodeUniqueness
+│       ├── vo/                         # ProductCode
+│       └── exception/                  # ProductNotFoundException, ProductOutOfStockException 등
+└── infra/                              # 아웃바운드 어댑터
+    ├── common/                         # CoroutineConfig, ErrorLogRepository, AuditingConfig, QueryDslConfig, RedisLockRepositoryImpl
+    └── product/                        # ProductRepositoryImpl, ProductStockServiceImpl, OwnerValidationServiceImpl
+        ├── mysql/                      # JdbcProductRepository, JpaProductRepository
+        ├── redis/                      # RedisStockRepository
+        ├── querydsl/                   # QueryDslProductReader, QueryDslProductSorter
+        └── batch/                      # StockConsistencyBatchJob, StockConsistencyBatchScheduler
 ```
 
 ### 레이어드 아키텍처
-- **패턴**: Aggregate-First + 4계층 레이어드 아키텍처 + DDD 원칙
-- **구조**: `controller → application → domain ← infra`
-- **핵심 원칙**: Domain 계층은 순수 비즈니스 로직만 포함 (다른 계층에 의존하지 않음)
+- **패턴**: Layer-First(계층 우선) + 계층 내부 도메인별 분리 + DDD 원칙
+- **구조**: `ui → application → domain ← infra`
+- **핵심 원칙**
+  - Domain 계층은 순수 비즈니스 로직만 포함하고 다른 계층에 의존하지 않는다
+  - Domain 계층은 Application 계층에 의해 보호된다 (`ui`는 `domain`을 직접 참조하지 않는다)
+    - 유일한 예외: `ApiControllerAdvice`/`ApiResponse`가 전역 예외 변환을 위해 `BusinessException`, `ErrorCode`를 참조
+  - 도메인 서비스는 포트 역할을 겸한다: 인터페이스는 `domain`, 구현체는 `infra`
+  - 애그리거트 간 호출은 포트를 거친다 (예: `OwnerValidationService` → `OwnerValidationServiceImpl` → `VerifyMemberIsSeller`)
+
+### 애플리케이션 계층 규칙
+- 유스케이스 1개 = 클래스 1개, 진입점은 `operator fun invoke`
+- 네이밍은 동사+명사 (`RegisterProducts`, `GetProductPage`, `VerifyMemberIsSeller`)
+- Command / Query / Result DTO는 해당 유스케이스 클래스 안에 중첩 선언
+- 포트는 계약을 소유한 계층에 둔다. 시그니처에 등장하는 타입보다 아래 계층으로는 내려갈 수 없다
+  - 조회 포트 `ProductReader`는 리드모델(`GetProductDetail.Result` 등)을 반환하므로 `application`, 구현은 `infra/product/querydsl`
+  - `Repository`라는 이름은 애그리거트 루트를 다루는 포트에만 쓴다 (`ProductRepository`). 리드모델을 반환하는 조회 포트는 `Reader`
+- Entity는 계층 경계를 넘지 않는다
+  - `domain` 포트가 Entity를 주고받는 것은 정상 (`ProductRepository.saveAll(List<Product>)`)
+  - 조회 포트는 Entity를 반환하지 않는다 — 불변식 우회, 불필요한 엔티티 그래프 로딩 방지
+  - `application`이 `ui`로 Entity를 노출하지 않는다
 
 ## 코딩 컨벤션
 - **네이밍**: 클래스 PascalCase, 변수/함수 camelCase, 패키지 lowercase.dotted
