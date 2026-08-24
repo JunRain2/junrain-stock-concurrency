@@ -1,4 +1,4 @@
-package com.junrain.stock.support
+package com.junrain.stock.config
 
 import com.junrain.stock.infra.product.StockStrategy
 import org.redisson.api.RedissonClient
@@ -21,20 +21,24 @@ class StockProbe(
 ) {
     fun stockOf(productId: Long): Long =
         when (stockStrategy) {
-            StockStrategy.REDIS -> redissonClient.getAtomicLong("product_stock:$productId").get()
+            StockStrategy.REDIS -> {
+                redissonClient.getAtomicLong("product_stock:$productId").get()
+            }
 
-            StockStrategy.SKIP_LOCKED ->
+            StockStrategy.SKIP_LOCKED -> {
                 jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM stock_items WHERE product_id = ? AND status = 'AVAILABLE'",
                     Long::class.java,
                     productId,
                 ) ?: 0
+            }
 
-            StockStrategy.SINGLE_UPDATE ->
+            StockStrategy.SINGLE_UPDATE -> {
                 jdbcTemplate.queryForObject(
                     "SELECT stock FROM products WHERE id = ?",
                     Long::class.java,
                     productId,
                 ) ?: 0
+            }
         }
 }

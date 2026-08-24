@@ -2,6 +2,7 @@ package com.junrain.stock.application.product
 
 import com.junrain.stock.application.product.ReserveProducts.Command
 import com.junrain.stock.application.product.ReserveProducts.Command.Change
+import com.junrain.stock.config.StockProbe
 import com.junrain.stock.domain.common.Money
 import com.junrain.stock.domain.member.Member
 import com.junrain.stock.domain.member.MemberRepository
@@ -11,7 +12,6 @@ import com.junrain.stock.domain.product.ProductRepository
 import com.junrain.stock.domain.product.exception.StockUnavailableException
 import com.junrain.stock.domain.product.vo.ProductCode
 import com.junrain.stock.domain.reservation.ReservationRepository
-import com.junrain.stock.support.StockProbe
 import com.junrain.stock.infra.product.mysql.JpaProductRepository
 import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
