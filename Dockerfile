@@ -29,4 +29,4 @@ COPY --from=build /app/build/libs/*.jar app.jar
 EXPOSE 8080
 
 # Run application with external config location
-ENTRYPOINT ["java", "-jar", "/app/app.jar", "--spring.config.location=classpath:/application.yml,file:/app/config/application.yml"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar", "--spring.config.location=classpath:/application.yml,optional:file:/app/config/application.yml"]
