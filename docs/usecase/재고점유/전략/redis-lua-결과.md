@@ -1,6 +1,6 @@
 # Redis 원자적 차감 측정 결과
 
-[재고점유.md](재고점유.md)가 정의한 부하 모델과 판정 기준으로 측정한 결과다. 측정 대상 구현은 Redis Lua 스크립트 기반 원자적 차감이며, [mysql-비관적락-결과.md](mysql-비관적락-결과.md)의 MySQL 행 배타 락 측정과 같은 시나리오·같은 SLO로 비교한다.
+[부하테스트 모델](../02-부하테스트-모델.md)이 정의한 부하 모델과 판정 기준으로 측정한 결과다. 측정 대상 구현은 Redis Lua 스크립트 기반 원자적 차감이며, [MySQL 단일 UPDATE 결과](mysql-case-update-결과.md)의 MySQL 행 배타 락 측정과 같은 시나리오·같은 SLO로 비교한다.
 
 ## 목차
 
@@ -36,7 +36,7 @@ end
 
 호출 전후로 `StockOpLogger`가 `stock-op` 로그에 pending/done을 남긴다(Redis 타임아웃 시 적용 여부를 알 수 없는 요청을 나중에 식별하기 위한 WAL). 예약 자체(`Reservation` 저장)는 이전과 동일하게 MySQL에 JPA로 쓰인다 — 이 측정에서 MySQL은 재고 경합과는 무관하게 매 요청 1건씩 계속 쓰인다.
 
-`RedisStockWriterImpl`이 `@Primary`라 이 저장소가 실제 예약 경로에서 사용된다. `increase`(보상 경로)는 미구현(`TODO`)이며 예약 성공 경로에서는 호출되지 않는다.
+측정 당시 `RedisStockWriterImpl`이 `@Primary`라 이 저장소가 실제 예약 경로에서 사용됐다(현재는 `stock.strategy=redis`로 고른다). `increase`(보상 경로)는 미구현(`TODO`)이며 예약 성공 경로에서는 호출되지 않는다.
 
 이 구현은 아직 커밋되지 않은 작업 중 코드다(git sha `c2f314d` 기준 워킹 트리 변경분).
 

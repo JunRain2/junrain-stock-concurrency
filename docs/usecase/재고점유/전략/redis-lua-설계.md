@@ -4,9 +4,9 @@
 |---|---|
 | 대상 | `StockWriter` 포트의 Redis 구현. Lua 스크립트로 n개 상품을 원자 차감하고, op 로그로 타임아웃을 회수한다 |
 | 구현체 | `RedisStockWriterImpl`, `src/main/resources/redis/decrease_stock.lua`, `StockOpLogger` |
-| 관련 문서 | [비즈니스 규칙](01-비즈니스-규칙.md), [MySQL 단일 UPDATE](02-mysql-case-update.md) |
+| 관련 문서 | [비즈니스 규칙](../01-비즈니스-규칙.md), [MySQL 단일 UPDATE](mysql-case-update-설계.md) |
 
-`StockWriter`는 여러 구현체를 가질 수 있다. 이 문서는 그중 Redis 전략만 다룬다. MySQL 전략은 [02번 문서](02-mysql-case-update.md)가 다루며, 이 문서를 고쳐 쓰지 않는다.
+`StockWriter`는 여러 구현체를 가질 수 있다. 이 문서는 그중 Redis 전략만 다룬다. MySQL 전략은 [MySQL 단일 UPDATE 설계](mysql-case-update-설계.md)가 다루며, 이 문서를 고쳐 쓰지 않는다.
 
 ## 목차
 
@@ -26,7 +26,7 @@
 
 n개 상품의 재고를 한 요청 안에서 원자적으로 차감하는 것, 그리고 그 호출이 타임아웃 났을 때 최종적 일관성을 회복할 수 있게 기록을 남기는 것까지가 이 문서의 범위다.
 
-전략 간 공통 계약(재시도 가능 여부, 실패 시 사용자 응답)은 [비즈니스 규칙](01-비즈니스-규칙.md)이 정의한다. 이 문서는 그 계약을 Redis에서 "어떻게" 지키는지만 다룬다.
+전략 간 공통 계약(재시도 가능 여부, 실패 시 사용자 응답)은 [비즈니스 규칙](../01-비즈니스-규칙.md)이 정의한다. 이 문서는 그 계약을 Redis에서 "어떻게" 지키는지만 다룬다.
 
 **현재 미구현**: 보상(`increase`), pending 회수 스케줄러. [9번](#9-범위-밖) 참고.
 
@@ -162,7 +162,7 @@ pending으로 남는 것은 **적용 여부를 모르는 경우뿐**이다.
 | `RedisTimeoutException` | **pending인 채** | `StockUnstableException` | 409 (재시도 가능) |
 | `RedisConnectionException` | **pending인 채** | `StockUnstableException` | 409 (재시도 가능) |
 
-`InfraException`(→500)이 아니라 `StockUnstableException`(→409)으로 변환하는 이유는 [비즈니스 규칙](01-비즈니스-규칙.md)의 실패 분류를 따르기 때문이다. 인프라 일시 장애는 사용자가 다시 시도할 수 있는 실패다.
+`InfraException`(→500)이 아니라 `StockUnstableException`(→409)으로 변환하는 이유는 [비즈니스 규칙](../01-비즈니스-규칙.md)의 실패 분류를 따르기 때문이다. 인프라 일시 장애는 사용자가 다시 시도할 수 있는 실패다.
 
 ## 8. 재적용 대상의 범위와 비용
 

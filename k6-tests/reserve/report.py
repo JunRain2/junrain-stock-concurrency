@@ -358,7 +358,7 @@ def main():
 </style></head>
 <body><div class="wrap">
   <h1>재고 점유 부하테스트 결과</h1>
-  <p class="sub">생성 {datetime.now().strftime("%Y-%m-%d %H:%M")} · 설계 근거는 <code>docs/load_test/재고점유.md</code></p>
+  <p class="sub">생성 {datetime.now().strftime("%Y-%m-%d %H:%M")} · 설계 근거는 <code>docs/usecase/재고점유/02-부하테스트-모델.md</code></p>
 
   <div class="cards">{"".join(cards)}</div>
 

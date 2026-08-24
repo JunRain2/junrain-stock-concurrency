@@ -6,7 +6,7 @@
 #
 # 사전 조건: Docker Desktop 리소스를 CPU 6 / Memory 8GB 이상으로
 #
-# 자세한 제약은 docs/load_test/재고점유.md
+# 자세한 제약은 docs/usecase/재고점유/02-부하테스트-모델.md
 
 set -euo pipefail
 
@@ -69,4 +69,4 @@ echo -e "  종료  $(kst)"
 echo -e "  소요  $((ELAPSED / 60))분 $((ELAPSED % 60))초"
 echo -e "  원본  ${RESULTS_DIR}/*.json"
 echo -e "  리포트 ${RESULTS_DIR}/report.html"
-echo -e "${YELLOW}환경 스탬프를 결과 옆에 남길 것 (docs/load_test/재고점유.md).${NC}"
+echo -e "${YELLOW}환경 스탬프를 결과 옆에 남길 것 (docs/usecase/재고점유/02-부하테스트-모델.md).${NC}"

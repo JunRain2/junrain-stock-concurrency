@@ -38,7 +38,7 @@ docker compose -f docker-compose.yml -f docker-compose.bench.yml up -d
 
 ## 재고 점유 API
 
-시나리오 설계·환경 제약·판정 기준은 **[docs/load_test/재고점유.md](../docs/load_test/재고점유.md)** 에 있다. 아래는 실행법만.
+시나리오 설계·환경 제약·판정 기준은 **[docs/usecase/재고점유/02-부하테스트-모델.md](../docs/usecase/재고점유/02-부하테스트-모델.md)** 에 있다. 아래는 실행법만.
 
 ```bash
 bash k6-tests/reserve/run.sh

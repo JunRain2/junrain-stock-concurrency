@@ -1,6 +1,6 @@
 /**
  * 재고 점유 부하테스트 공통 설정.
- * 시나리오 정의는 docs/load_test/재고점유.md
+ * 시나리오 정의는 docs/usecase/재고점유/02-부하테스트-모델.md
  */
 
 import http from 'k6/http';
