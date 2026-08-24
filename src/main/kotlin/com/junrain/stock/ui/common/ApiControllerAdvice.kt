@@ -15,7 +15,7 @@ class ApiControllerAdvice {
 
     @ExceptionHandler
     fun handleBusinessException(e: BusinessException): ResponseEntity<ApiResponse<*>> {
-        log.error("BusinessException : {}", e.message, e)
+        log.warn("BusinessException {} : {}", e.errorCode.code, e.message)
         return ResponseEntity
             .status(e.errorCode.status)
             .body(ApiResponse.fail(e.errorCode, e.message))
