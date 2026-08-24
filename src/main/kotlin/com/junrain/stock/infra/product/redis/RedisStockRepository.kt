@@ -1,10 +1,10 @@
 package com.junrain.stock.infra.product.redis
 
-import com.junrain.stock.application.product.port.StockChange
 import com.junrain.stock.domain.common.InfraException
-import com.junrain.stock.domain.product.exception.ProductOutOfStockException
+import com.junrain.stock.domain.product.exception.StockUnavailableException
 import com.junrain.stock.infra.common.jdbc.ErrorLogRepository
 import com.junrain.stock.infra.common.jdbc.ErrorLogType
+import com.junrain.stock.infra.product.StockDelta
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.redisson.api.BatchOptions
 import org.redisson.api.RBatch
@@ -42,9 +42,9 @@ class RedisStockRepository(
 
     fun decreaseStock(
         requestKey: String,
-        vararg stockChanges: StockChange,
+        vararg stockChanges: StockDelta,
     ) {
-        validateStockChanges(stockChanges)
+        validateStockDeltas(stockChanges)
         val batch = generateBatch(requestKey)
 
         stockChanges.sortedBy { it.productId }.forEach {
@@ -53,14 +53,14 @@ class RedisStockRepository(
 
         try {
             batch.execute().responses.drop(1).map { it as Long }.apply {
-                if (this.any { it < 0 }) throw ProductOutOfStockException()
+                if (this.any { it < 0 }) throw StockUnavailableException("Redis 예약 재고 부족 : $requestKey")
             }
         } catch (e: RedisException) {
             when (e) {
                 is RedisTimeoutException -> {
                     logger.error(e) { "에러 로그 저장 시작" }
                     asyncExecutor.execute {
-                        saveRedisStockChangeException(requestKey, *stockChanges)
+                        saveRedisStockDeltaException(requestKey, *stockChanges)
                     }
                     throw InfraException(e)
                 }
@@ -88,16 +88,16 @@ class RedisStockRepository(
 
     private fun generateRequestKey(id: String) = "request:$id"
 
-    private fun validateStockChanges(stockChanges: Array<out StockChange>) {
+    private fun validateStockDeltas(stockChanges: Array<out StockDelta>) {
         require(stockChanges.isNotEmpty()) { "stockChanges는 반드시 한 개 이상이어야 합니다." }
         require(stockChanges.size <= maxSize) { "stockChanges는 반드시 $maxSize 이하이어야 합니다." }
     }
 
     fun increaseStock(
         requestKey: String,
-        vararg stockChanges: StockChange,
+        vararg stockChanges: StockDelta,
     ) {
-        validateStockChanges(stockChanges)
+        validateStockDeltas(stockChanges)
         val batch = generateBatch(requestKey)
 
         stockChanges.sortedBy { it.productId }.forEach {
@@ -110,7 +110,7 @@ class RedisStockRepository(
             when (e) {
                 is RedisTimeoutException, is RedisConnectionException -> {
                     asyncExecutor.execute {
-                        saveRedisStockChangeException(requestKey, *stockChanges)
+                        saveRedisStockDeltaException(requestKey, *stockChanges)
                     }
                     throw InfraException(e)
                 }
@@ -119,9 +119,9 @@ class RedisStockRepository(
         }
     }
 
-    private fun saveRedisStockChangeException(
+    private fun saveRedisStockDeltaException(
         requestKey: String,
-        vararg changes: StockChange,
+        vararg changes: StockDelta,
     ) {
         errorLogRepository.saveErrorLog(
             requestKey = requestKey,

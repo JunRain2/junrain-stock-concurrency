@@ -1,9 +1,9 @@
 package com.junrain.stock.infra.product.batch
 
 import com.fasterxml.jackson.core.type.TypeReference
-import com.junrain.stock.application.product.port.StockChange
 import com.junrain.stock.infra.common.jdbc.ErrorLogRepository
 import com.junrain.stock.infra.common.jdbc.ErrorLogType
+import com.junrain.stock.infra.product.StockDelta
 import com.junrain.stock.infra.product.redis.RedisStockRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.quartz.DisallowConcurrentExecution
@@ -35,7 +35,7 @@ class StockConsistencyBatchJob(
         errorLogRepository
             .findAllErrorLog(
                 reason = ErrorLogType.STOCK_CHANGE,
-                typeRef = object : TypeReference<List<StockChange>>() {},
+                typeRef = object : TypeReference<List<StockDelta>>() {},
             ).forEach { errorLog ->
                 val requestKey = errorLog.requestKey
 

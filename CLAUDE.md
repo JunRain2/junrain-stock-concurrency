@@ -10,31 +10,30 @@
 ### 패키지 구조 (Layer-First)
 ```
 src/main/kotlin/com/junrain/stock/
-├── StockConcurrencyApplication.kt      # 단일 진입점
-├── ui/                                 # 인바운드 어댑터
-│   ├── common/                         # ApiResponse, ApiControllerAdvice
-│   └── product/                        # ProductCommandController, ProductQueryController
-│       └── dto/                        # ProductRegisterDto, ProductDetailResponse, ProductPageRequest, ProductPageResponse
-├── application/                        # 유스케이스
-│   ├── common/                         # CursorPageResponse
-│   ├── member/                         # VerifyMemberIsSeller
-│   └── product/                        # RegisterProducts, GetProductDetail, GetProductPage
-│       ├── port/                       # ProductReader(조회 포트), StockReservation(재고 변경 포트, StockChange)
-│       └── query/                      # ProductSorter
-├── domain/                             # 순수 비즈니스 로직
-│   ├── common/                         # BaseEntity, BaseException, ErrorCode, Money, LockRepository
-│   ├── member/                         # Member, MemberRepository, MemberType, exception/*
-│   └── product/                        # Product, ProductRepository, OwnerValidationService, ProductCodeUniqueness
-│       ├── vo/                         # ProductCode
-│       └── exception/                  # ProductNotFoundException, ProductOutOfStockException 등
-└── infra/                              # 아웃바운드 어댑터
-    ├── common/                         # AsyncExecutorConfig, ErrorLogRepository, AuditingConfig, QueryDslConfig, RedisLockRepositoryImpl
-    └── product/                        # ProductRepositoryImpl, StockReservationImpl, OwnerValidationServiceImpl
-        ├── mysql/                      # JdbcProductRepository, JpaProductRepository
-        ├── redis/                      # RedisStockRepository
-        ├── querydsl/                   # QueryDslProductReader, QueryDslProductSorter
-        └── batch/                      # StockConsistencyBatchJob, StockConsistencyBatchScheduler
+├── ui/                 # 인바운드 어댑터 (Controller, 요청/응답 DTO)
+│   ├── common/         # 전역 응답 래퍼, 예외 핸들러
+│   └── <도메인>/
+│       └── dto/
+├── application/        # 유스케이스
+│   ├── common/
+│   └── <도메인>/
+│       ├── port/       # 아웃바운드 포트 (리드모델/애플리케이션 타입을 다루는 계약)
+│       └── query/      # 조회 전용 보조 타입
+├── domain/             # 순수 비즈니스 로직
+│   ├── common/         # 공통 엔티티/예외/VO 기반 타입
+│   └── <도메인>/       # 엔티티, 애그리거트 포트, 도메인 서비스 인터페이스
+│       ├── vo/
+│       └── exception/
+└── infra/              # 아웃바운드 어댑터 (포트 구현)
+    ├── common/         # 설정, 공통 인프라 컴포넌트
+    └── <도메인>/
+        ├── mysql/      # JPA / JDBC
+        ├── redis/
+        ├── querydsl/   # 조회 포트 구현
+        └── batch/
 ```
+- 계층이 1차 기준, 계층 안에서 도메인별로 나눈다
+- 도메인 폴더 이름은 애그리거트 단위로 짓는다. 계층마다 같은 이름을 쓴다
 
 ### 레이어드 아키텍처
 - **패턴**: Layer-First(계층 우선) + 계층 내부 도메인별 분리 + DDD 원칙
@@ -42,20 +41,21 @@ src/main/kotlin/com/junrain/stock/
 - **핵심 원칙**
   - Domain 계층은 순수 비즈니스 로직만 포함하고 다른 계층에 의존하지 않는다
   - Domain 계층은 Application 계층에 의해 보호된다 (`ui`는 `domain`을 직접 참조하지 않는다)
-    - 유일한 예외: `ApiControllerAdvice`/`ApiResponse`가 전역 예외 변환을 위해 `BusinessException`, `ErrorCode`를 참조
+    - 유일한 예외: 전역 예외 핸들러/응답 래퍼가 공통 예외·에러 코드 타입을 참조
   - 도메인 서비스는 포트 역할을 겸한다: 인터페이스는 `domain`, 구현체는 `infra`
-  - 애그리거트 간 호출은 포트를 거친다 (예: `OwnerValidationService` → `OwnerValidationServiceImpl` → `VerifyMemberIsSeller`)
+  - 애그리거트 간 호출은 포트를 거친다
 
 ### 애플리케이션 계층 규칙
 - 유스케이스 1개 = 클래스 1개, 진입점은 `operator fun invoke`
-- 네이밍은 동사+명사 (`RegisterProducts`, `GetProductPage`, `VerifyMemberIsSeller`)
+- 네이밍은 동사+명사
 - Command / Query / Result DTO는 해당 유스케이스 클래스 안에 중첩 선언
 - 포트는 계약을 소유한 계층에 둔다. 시그니처에 등장하는 타입보다 아래 계층으로는 내려갈 수 없다
-  - 조회 포트 `ProductReader`는 리드모델(`GetProductDetail.Result` 등)을 반환하므로 `application`, 구현은 `infra/product/querydsl`
-  - 재고 변경 포트 `StockReservation`도 `application/product/port`, 구현은 `infra/product`(`StockReservationImpl`). Redis 예약 재고 + MySQL 확정 재고를 다루는 아웃바운드 포트라 도메인 서비스가 아니다
-  - `Repository`라는 이름은 애그리거트 루트를 다루는 포트에만 쓴다 (`ProductRepository`). 리드모델을 반환하는 조회 포트는 `Reader`
+  - 리드모델을 반환하는 조회 포트, 인프라 저장소(DB/캐시)를 직접 다루는 변경 포트는 `application/<도메인>/port`, 구현은 `infra`
+  - 애그리거트 루트를 주고받는 포트만 `domain`에 둔다
+- 포트 이름은 실제 하는 일을 그대로 쓴다. 상위 유스케이스의 업무 용어를 포트로 끌어내리지 않는다
+  - `Repository`는 애그리거트 루트를 다루는 포트에만. 리드모델 반환 조회 포트는 `Reader`, 상태 변경 포트는 `Writer`
 - Entity는 계층 경계를 넘지 않는다
-  - `domain` 포트가 Entity를 주고받는 것은 정상 (`ProductRepository.saveAll(List<Product>)`)
+  - `domain` 포트가 Entity를 주고받는 것은 정상
   - 조회 포트는 Entity를 반환하지 않는다 — 불변식 우회, 불필요한 엔티티 그래프 로딩 방지
   - `application`이 `ui`로 Entity를 노출하지 않는다
 
@@ -73,17 +73,17 @@ src/main/kotlin/com/junrain/stock/
 - **Spring Data JPA + Hibernate** - ORM
 
 ## 코딩 표준
-- **함수**: 단일 책임 원칙, 도메인 검증은 `init {}` 블록에서 수행
+- **함수**: 단일 책임 원칙, 도메인 검증은 `init {}` 블록에서 `require()`로 수행 (한글 메시지)
 - **에러 처리**:
-  - `BusinessException` 상속으로 비즈니스 예외 정의
-  - `ErrorCode` enum으로 에러 코드/메시지/HTTP 상태 관리
-  - `ApiResponse<T>` 래퍼로 통일된 응답 포맷 사용
-  - 도메인 검증 실패 시 `require()` 사용 (한글 메시지)
-- **비동기**: Virtual Thread `Executor`(`asyncExecutor` 빈) 주입해서 사용. `suspend`/코루틴 금지
-  - 운영: `Executors.newVirtualThreadPerTaskExecutor()` (`AsyncExecutorConfig`, `@Profile("!test")`)
-  - 테스트: 호출 스레드 즉시 실행 + 예외 삼킴 (`TestAsyncExecutorConfig`, `@Profile("test")`)
+  - 공통 비즈니스 예외 타입을 상속해 정의하고, 에러 코드/메시지/HTTP 상태는 `ErrorCode` enum으로 관리
+  - 전역 응답 래퍼로 통일된 응답 포맷 사용
+  - 실패는 재시도 가능 여부로 나눈다: 정합성 위반은 재시도 불가(400), 인프라 일시 장애는 재시도 가능(409)
+  - 실패 상세 원인은 사용자에게 노출하지 않는다. 원인 문자열은 로그 전용 — 전역 핸들러가 `message`를 응답에 싣는다
+- **비동기**: Virtual Thread `Executor` 빈을 주입해서 사용. `suspend`/코루틴 금지
+  - 운영: `Executors.newVirtualThreadPerTaskExecutor()` (`@Profile("!test")`)
+  - 테스트: 호출 스레드 즉시 실행 + 예외 삼킴 (`@Profile("test")`)
 - **동시성**: Virtual Threads 활성화 (`spring.threads.virtual.enabled=true`)
-- **Value Objects**: 불변(immutable) 설계, Operator overloading 활용 (예: `Money`)
+- **Value Objects**: 불변(immutable) 설계, Operator overloading 활용
 - **Batch 작업**: Bulk insert/update 시 chunk 단위로 처리
 
 ## 워크플로
@@ -108,14 +108,3 @@ src/main/kotlin/com/junrain/stock/
 - **docker-compose.yml**: 앱 + MySQL + Redis
 - **서비스 포트**: 앱 8080, MySQL 3306, Redis 6379
 - **실행**: `docker-compose up --build`
-
-## Claude 주의사항
-1. Domain 계층은 순수 비즈니스 로직만 포함 (Infrastructure 의존 금지)
-2. Entity 생성 시 `init {}` 블록에서 도메인 검증 (`require()` 사용)
-3. Bulk 작업 시 chunk 단위 처리 (max 5000건, chunk 1000건)
-4. 분산 환경을 고려한 동시성 제어 (Redisson 분산락)
-5. Value Object는 불변으로 설계하고 operator overloading 활용
-6. 테스트는 TestContainers로 실제 DB/Redis 환경에서 검증
-7. 에러 메시지는 한글로 작성
-8. `ApiResponse<T>` 래퍼로 일관된 API 응답 구조 유지
-9. Repository 인터페이스는 Domain 계층에, 구현은 Infrastructure 계층에 배치

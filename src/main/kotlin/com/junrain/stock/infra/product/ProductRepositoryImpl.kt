@@ -1,6 +1,5 @@
 package com.junrain.stock.infra.product
 
-import com.junrain.stock.application.product.port.StockChange
 import com.junrain.stock.domain.product.Product
 import com.junrain.stock.domain.product.ProductRepository
 import com.junrain.stock.domain.product.exception.ProductDuplicateCodeException
@@ -78,7 +77,7 @@ class ProductRepositoryImpl(
                 asyncExecutor.execute {
                     val stockChanges =
                         chunk.map {
-                            StockChange(
+                            StockDelta(
                                 productId = it.id,
                                 quantity = it.stock,
                             )

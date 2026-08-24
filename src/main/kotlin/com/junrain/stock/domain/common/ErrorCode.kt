@@ -27,9 +27,12 @@ enum class ErrorCode(
     // Product
     PRODUCT_NOT_FOUND("PRO001", "상품을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
     PRODUCT_CODE_DUPLICATED("PRO002", "이미 존재하는 상품 코드입니다", HttpStatus.CONFLICT),
-    PRODUCT_OUT_OF_STOCK("PRO003", "재고가 부족합니다", HttpStatus.BAD_REQUEST),
+    // 재시도 불가 - 정합성 위반
+    STOCK_UNAVAILABLE("PRO003", "재고 점유에 실패했습니다", HttpStatus.BAD_REQUEST),
     PRODUCT_ACCESS_DENIED("PRO04", "상품에 대한 권한이 없습니다.", HttpStatus.FORBIDDEN),
     PRODUCT_CREATION_ERROR("PRO05", "상품을 생성하던 중 예외가 발생했습니다.", HttpStatus.BAD_REQUEST),
+    // 재시도 가능 - 인프라 일시 장애
+    STOCK_UNSTABLE("PRO006", "재고 점유에 실패했습니다. 잠시 후 다시 시도해 주세요", HttpStatus.CONFLICT),
 
     // Member
     MEMBER_NOT_FOUND("MEM001", "사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
