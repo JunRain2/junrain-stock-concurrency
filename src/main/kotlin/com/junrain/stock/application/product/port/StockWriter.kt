@@ -1,7 +1,7 @@
 package com.junrain.stock.application.product.port
 
 /**
- * MySQL 확정 재고 포트.
+ * 확정 재고 포트. 저장소(MySQL/Redis)는 구현체가 정한다.
  */
 interface StockWriter {
     /**

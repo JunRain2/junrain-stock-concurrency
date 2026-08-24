@@ -8,13 +8,13 @@ import com.junrain.stock.infra.product.mysql.JdbcProductRepository
 import com.junrain.stock.infra.product.mysql.JpaProductRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.dao.CannotAcquireLockException
-import org.springframework.stereotype.Service
+import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 
 private val logger = KotlinLogging.logger { }
 
-@Service
-class StockWriterImpl(
+@Component
+class MySqlStockWriterImpl(
     private val jpaProductRepository: JpaProductRepository,
     private val jdbcProductRepository: JdbcProductRepository,
 ) : StockWriter {

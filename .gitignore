@@ -44,3 +44,6 @@ out/
 
 ### macOS ###
 .DS_Store
+
+### Application logs
+logs/

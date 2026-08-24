@@ -46,15 +46,15 @@ mysql_exec < "${SEED_SQL}" 2>/dev/null
 PRODUCT_COUNT=$(mysql_exec -N -B -e "SELECT COUNT(*) FROM products;" 2>/dev/null)
 MIN_STOCK=$(mysql_exec -N -B -e "SELECT MIN(stock) FROM products;" 2>/dev/null)
 
-if [ "${PRODUCT_COUNT}" != "100" ] || [ "${MIN_STOCK}" != "500000" ]; then
+if [ "${PRODUCT_COUNT}" != "100" ] || [ "${MIN_STOCK}" != "3000000" ]; then
     echo -e "${RED}✗ 시드 검증 실패: 상품 ${PRODUCT_COUNT}개 / 최소 재고 ${MIN_STOCK}${NC}"
     exit 1
 fi
 echo -e "${GREEN}✓ 상품 ${PRODUCT_COUNT}개, 재고 각 ${MIN_STOCK}${NC}"
 
 # --- Redis ---------------------------------------------------------------
-# 현재 예약 경로는 Redis를 쓰지 않는다. 그래도 비운다 —
-# 배경 상태를 실행마다 같게 만들기 위해서다.
+# RedisStockWriterImpl이 @Primary라 예약 경로가 실제로 Redis를 쓴다.
+# MySQL 시드와 같은 상품 수/재고로 product_stock 키를 채운다.
 redis_exec() {
     if command -v redis-cli >/dev/null 2>&1; then
         redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" "$@"
@@ -68,10 +68,14 @@ redis_exec() {
 
 echo -e "${YELLOW}Redis 초기화...${NC}"
 redis_exec FLUSHALL >/dev/null
-REMAINING=$(redis_exec DBSIZE | tr -d '[:space:]')
 
-if [ "${REMAINING}" != "0" ]; then
-    echo -e "${RED}✗ Redis에 키가 ${REMAINING}개 남았다${NC}"
+for i in $(seq 1 "${PRODUCT_COUNT}"); do
+    redis_exec SET "product_stock:${i}" "${MIN_STOCK}" >/dev/null
+done
+
+REMAINING=$(redis_exec DBSIZE | tr -d '[:space:]')
+if [ "${REMAINING}" != "${PRODUCT_COUNT}" ]; then
+    echo -e "${RED}✗ Redis 키 ${REMAINING}개 (기대 ${PRODUCT_COUNT}개)${NC}"
     exit 1
 fi
-echo -e "${GREEN}✓ Redis 비움${NC}"
+echo -e "${GREEN}✓ Redis 상품 ${PRODUCT_COUNT}개, 재고 각 ${MIN_STOCK}${NC}"

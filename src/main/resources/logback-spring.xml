@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- 나머지 로깅은 Spring Boot 기본값 유지 -->
+    <include resource="org/springframework/boot/logging/logback/base.xml"/>
+
+    <property name="STOCK_OP_LOG" value="${STOCK_OP_LOG:-logs/stock-op.log}"/>
+
+    <!--
+        Redis 재고 연산의 선행 기록(WAL).
+        "pending<TAB>op_id<TAB>json" / "done<TAB>op_id" 두 줄 포맷.
+        pending만 있고 done이 없는 op_id를 다음 스텝이 수거해 재시도한다.
+    -->
+    <appender name="STOCK_OP" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${STOCK_OP_LOG}</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${STOCK_OP_LOG}.%d{yyyy-MM-dd}</fileNamePattern>
+            <maxHistory>7</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{ISO8601}\t%msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="stock-op" level="INFO" additivity="false">
+        <appender-ref ref="STOCK_OP"/>
+    </logger>
+</configuration>

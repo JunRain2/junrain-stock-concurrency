@@ -8,7 +8,7 @@
 import http from 'k6/http';
 import { buildOptions, report, RESERVE_URL, PARAMS } from './common.js';
 
-const RATES = [500, 600, 700];
+const RATES = [1000, 1300, 1600, 1900];
 
 export const options = buildOptions(RATES);
 

@@ -47,8 +47,8 @@ export function buildOptions(rates) {
       rate: warmupRate,
       timeUnit: '1s',
       duration: `${WARMUP_SEC}s`,
-      preAllocatedVUs: Math.min(warmupRate, 500),
-      maxVUs: Math.min(warmupRate * 3, 1500),
+      preAllocatedVUs: Math.min(warmupRate, 1000),
+      maxVUs: Math.min(warmupRate * 3, 2500),
       startTime: '0s',
       // threshold를 걸지 않는다 = 결과에서 제외한다.
       tags: { rate: 'warmup' },
@@ -74,8 +74,8 @@ export function buildOptions(rates) {
       rate: rate,
       timeUnit: '1s',
       duration: `${STEP_SEC}s`,
-      preAllocatedVUs: Math.min(rate, 500),
-      maxVUs: Math.min(rate * 3, 1500),
+      preAllocatedVUs: Math.min(rate, 1000),
+      maxVUs: Math.min(rate * 3, 2500),
       startTime: `${startAt}s`,
       // 기본 30초. 포화 구간에서 매달린 이터레이션을 그만큼 기다리면 실행 시간이 배가 된다.
       gracefulStop: '10s',

@@ -10,7 +10,7 @@
 import http from 'k6/http';
 import { buildOptions, report, RESERVE_URL, PARAMS } from './common.js';
 
-const RATES = [500, 600, 700, 1000];
+const RATES = [1000, 1300, 1600, 1900];
 const PRODUCT_COUNT = 100;
 
 export const options = buildOptions(RATES);

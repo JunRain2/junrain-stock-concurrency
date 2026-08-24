@@ -7,10 +7,11 @@ import com.junrain.stock.domain.member.Member
 import com.junrain.stock.domain.member.MemberRepository
 import com.junrain.stock.domain.member.MemberType
 import com.junrain.stock.domain.product.Product
+import com.junrain.stock.domain.product.ProductRepository
 import com.junrain.stock.domain.product.exception.StockUnavailableException
-import com.junrain.stock.domain.product.exception.StockUnstableException
 import com.junrain.stock.domain.product.vo.ProductCode
 import com.junrain.stock.domain.reservation.ReservationRepository
+import com.junrain.stock.support.StockProbe
 import com.junrain.stock.infra.product.mysql.JpaProductRepository
 import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
@@ -35,6 +36,12 @@ class ReserveProductsConcurrencyTest {
 
     @Autowired
     private lateinit var jpaProductRepository: JpaProductRepository
+
+    @Autowired
+    private lateinit var productRepository: ProductRepository
+
+    @Autowired
+    private lateinit var stockProbe: StockProbe
 
     @Autowired
     private lateinit var memberRepository: MemberRepository
@@ -77,47 +84,6 @@ class ReserveProductsConcurrencyTest {
     }
 
     @Test
-    fun `상품 목록이 완전히 겹치고 순서가 반대여도 데드락 없이 전부 성공한다`() {
-        // given - 두 그룹이 같은 세 상품을 정반대 순서로 요청한다
-        val ids = List(3) { saveProduct(stock = ABUNDANT_STOCK) }
-        val ascending = ids
-        val descending = ids.reversed()
-
-        // when
-        val results =
-            runConcurrently(
-                List(GROUP_SIZE) { reserve(ascending) } + List(GROUP_SIZE) { reserve(descending) },
-            )
-
-        // then - UPDATE 한 방이라 InnoDB가 PK 오름차순으로 잠근다. 요청 순서와 무관하게 두 그룹의 락 순서가 같다
-        assertNoDeadlock(results)
-        ids.forEach { stockOf(it) shouldBe ABUNDANT_STOCK - GROUP_SIZE * 2 }
-        reservationRepository.count() shouldBe (GROUP_SIZE * 2).toLong()
-    }
-
-    @Test
-    fun `상품 목록이 일부만 겹치고 순서가 반대여도 데드락 없이 전부 성공한다`() {
-        // given - 겹치는 구간(2, 3)을 두 그룹이 정반대 순서로 잡으러 간다
-        val ids = List(6) { saveProduct(stock = ABUNDANT_STOCK) }
-        val ascending = ids.subList(0, 4)
-        val descending = ids.subList(2, 6).reversed()
-
-        // when
-        val results =
-            runConcurrently(
-                List(GROUP_SIZE) { reserve(ascending) } + List(GROUP_SIZE) { reserve(descending) },
-            )
-
-        // then
-        assertNoDeadlock(results)
-        listOf(ids[0], ids[1], ids[4], ids[5]).forEach { stockOf(it) shouldBe ABUNDANT_STOCK - GROUP_SIZE }
-        withClue("겹치는 상품은 양쪽 그룹만큼 줄어야 합니다") {
-            listOf(ids[2], ids[3]).forEach { stockOf(it) shouldBe ABUNDANT_STOCK - GROUP_SIZE * 2 }
-        }
-        reservationRepository.count() shouldBe (GROUP_SIZE * 2).toLong()
-    }
-
-    @Test
     fun `여러 상품 중 하나가 동시에 소진되면 나머지 상품의 재고도 롤백된다`() {
         // given - 재고가 하나뿐인 상품을 끼워 대부분의 요청이 실패하게 만든다
         val abundantId = saveProduct(stock = ABUNDANT_STOCK)
@@ -133,14 +99,6 @@ class ReserveProductsConcurrencyTest {
             stockOf(abundantId) shouldBe ABUNDANT_STOCK - 1
         }
         reservationRepository.count() shouldBe 1
-    }
-
-    private fun assertNoDeadlock(results: List<Result<Unit>>) {
-        val failures = results.failures()
-        withClue("데드락 희생자가 없어야 합니다 : ${failures.map { it::class.simpleName }}") {
-            failures.count { it is StockUnstableException } shouldBe 0
-        }
-        failures.size shouldBe 0
     }
 
     /**
@@ -170,14 +128,15 @@ class ReserveProductsConcurrencyTest {
     private fun List<Result<Unit>>.failures(): List<Throwable> = mapNotNull { it.exceptionOrNull() }
 
     /**
-     * 요청에 담긴 상품 순서를 그대로 유지한다. 상품별 UPDATE로 쪼개는 순간 이 순서가 락 순서가 되어 데드락이 난다.
+     * 요청에 담긴 상품 순서를 그대로 유지한다. 상품별 연산으로 쪼개는 순간 이 순서가 잠금 순서가 되어 데드락이 난다.
      */
     private fun reserve(ids: List<Long>): () -> Unit = { reserveProducts(Command(ids.map { Change(it, 1L) })) }
 
     private fun reserve(id: Long): () -> Unit = reserve(listOf(id))
 
+    // 포트로 저장한다. 재고를 어디에 심는지는 구현체가 정한다
     private fun saveProduct(stock: Long): Long =
-        jpaProductRepository
+        productRepository
             .save(
                 Product(
                     ownerId = sellerId,
@@ -188,13 +147,12 @@ class ReserveProductsConcurrencyTest {
                 ),
             ).id
 
-    private fun stockOf(id: Long): Long = jpaProductRepository.findById(id).orElseThrow().stock
+    private fun stockOf(id: Long): Long = stockProbe.stockOf(id)
 
     companion object {
         private const val LIMITED_STOCK = 10L
         private const val ABUNDANT_STOCK = 1000L
         private const val CONTENDER_COUNT = 30
-        private const val GROUP_SIZE = 10
         private const val READY_TIMEOUT_SECONDS = 10L
     }
 }

@@ -31,12 +31,12 @@ class RedisStockRepository(
         quantity: Long,
     ) {
         redissonClient
-            .getAtomicLong(generateStockKey(productId))
+            .getAtomicLong(stockKey(productId))
             .takeUnless { it.isExists }
             ?.set(quantity)
     }
 
-    private fun generateStockKey(id: Long) = "product_stock:$id"
+    private fun stockKey(productId: Long) = "product_stock:$productId"
 
     fun hasRequestKey(requestKey: String): Boolean = redissonClient.getBucket<String>(requestKey).isExists
 
@@ -48,7 +48,7 @@ class RedisStockRepository(
         val batch = generateBatch(requestKey)
 
         stockChanges.sortedBy { it.productId }.forEach {
-            batch.getAtomicLong(generateStockKey(it.productId)).addAndGetAsync(-it.quantity)
+            batch.getAtomicLong(stockKey(it.productId)).addAndGetAsync(-it.quantity)
         }
 
         try {
@@ -101,7 +101,7 @@ class RedisStockRepository(
         val batch = generateBatch(requestKey)
 
         stockChanges.sortedBy { it.productId }.forEach {
-            batch.getAtomicLong(generateStockKey(it.productId)).addAndGetAsync(it.quantity)
+            batch.getAtomicLong(stockKey(it.productId)).addAndGetAsync(it.quantity)
         }
 
         try {

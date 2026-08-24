@@ -92,11 +92,6 @@ src/main/kotlin/com/junrain/stock/
   - 예: `feat: 로그인 기능 추가`, `refactor: 구조 변경`, `test: 테스트 추가`
 
 ## 제약 조건
-- **성능**:
-  - API 응답 p95 < 200ms
-  - Bulk 작업: 최대 5000건, chunk 1000건 단위 처리
-  - Redis timeout 명시적 처리 필수
-  - Batch statement rewriting 활성화 (`rewriteBatchedStatements=true`)
 - **동시성**:
   - 분산 환경에서 Redisson 분산락 사용
   - Optimistic/Pessimistic locking 전략 적절히 적용
@@ -105,6 +100,6 @@ src/main/kotlin/com/junrain/stock/
 - **테스트**: 통합 테스트는 TestContainers로 실제 DB/Redis 환경 검증
 
 ## Docker 환경
-- **docker-compose.yml**: 앱 + MySQL + Redis
+- **docker-compose.yml**: MySQL + Redis
 - **서비스 포트**: 앱 8080, MySQL 3306, Redis 6379
 - **실행**: `docker-compose up --build`

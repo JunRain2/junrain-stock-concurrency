@@ -7,9 +7,11 @@ import com.junrain.stock.domain.member.Member
 import com.junrain.stock.domain.member.MemberRepository
 import com.junrain.stock.domain.member.MemberType
 import com.junrain.stock.domain.product.Product
+import com.junrain.stock.domain.product.ProductRepository
 import com.junrain.stock.domain.product.exception.StockUnavailableException
 import com.junrain.stock.domain.product.vo.ProductCode
 import com.junrain.stock.domain.reservation.ReservationRepository
+import com.junrain.stock.support.StockProbe
 import com.junrain.stock.infra.product.mysql.JpaProductRepository
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.assertions.withClue
@@ -33,6 +35,12 @@ class ReserveProductsIntegrationTest {
     private lateinit var jpaProductRepository: JpaProductRepository
 
     @Autowired
+    private lateinit var productRepository: ProductRepository
+
+    @Autowired
+    private lateinit var stockProbe: StockProbe
+
+    @Autowired
     private lateinit var memberRepository: MemberRepository
 
     private var productId: Long = 0
@@ -52,8 +60,9 @@ class ReserveProductsIntegrationTest {
         memberRepository.deleteAll()
     }
 
+    // 포트로 저장한다. 재고를 어디에 심는지는 구현체가 정한다
     private fun saveProduct(code: String): Long =
-        jpaProductRepository
+        productRepository
             .save(
                 Product(
                     ownerId = sellerId,
@@ -64,7 +73,7 @@ class ReserveProductsIntegrationTest {
                 ),
             ).id
 
-    private fun stockOf(id: Long): Long = jpaProductRepository.findById(id).orElseThrow().stock
+    private fun stockOf(id: Long): Long = stockProbe.stockOf(id)
 
     private fun currentStock(): Long = stockOf(productId)
 
