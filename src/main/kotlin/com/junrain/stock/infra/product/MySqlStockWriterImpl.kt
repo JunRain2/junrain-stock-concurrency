@@ -7,6 +7,7 @@ import com.junrain.stock.domain.product.exception.StockUnstableException
 import com.junrain.stock.infra.product.mysql.JdbcProductRepository
 import com.junrain.stock.infra.product.mysql.JpaProductRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.dao.CannotAcquireLockException
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional
 private val logger = KotlinLogging.logger { }
 
 @Component
+@ConditionalOnProperty(name = [StockStrategy.PROPERTY], havingValue = "single-update")
 class MySqlStockWriterImpl(
     private val jpaProductRepository: JpaProductRepository,
     private val jdbcProductRepository: JdbcProductRepository,

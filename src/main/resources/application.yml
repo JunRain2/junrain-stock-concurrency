@@ -41,6 +41,12 @@ spring:
         threadPool:
           threadCount: 10
 
+# 재고 차감 전략. redis | skip-locked | single-update
+# 구현체 등록과 초기 재고를 심을 저장소가 이 값 하나로 같이 움직인다.
+# 부하테스트는 STOCK_STRATEGY 환경변수로 덮어써 같은 이미지로 세 전략을 다 돈다.
+stock:
+  strategy: redis
+
 management:
   endpoints:
     web:

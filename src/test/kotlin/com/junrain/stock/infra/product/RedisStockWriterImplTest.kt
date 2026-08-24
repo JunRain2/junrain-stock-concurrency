@@ -24,11 +24,11 @@ import kotlin.test.assertTrue
  * 정상 차감/없는 상품/중복 거부/동시 요청은 [com.junrain.stock.application.product.ReserveProductsIntegrationTest]와
  * [com.junrain.stock.application.product.ReserveProductsConcurrencyTest]가 유스케이스 층에서 이미 검증한다.
  */
-@SpringBootTest
+@SpringBootTest(properties = ["stock.strategy=redis"])
 class RedisStockWriterImplTest
     @Autowired
     constructor(
-        private val stockWriter: StockWriter,
+        private val stockWriter: RedisStockWriterImpl,
         private val redissonClient: RedissonClient,
     ) {
         private val script =

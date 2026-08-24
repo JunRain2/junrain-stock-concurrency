@@ -10,7 +10,7 @@ import org.redisson.api.RedissonClient
 import org.redisson.client.RedisConnectionException
 import org.redisson.client.RedisTimeoutException
 import org.redisson.client.codec.StringCodec
-import org.springframework.context.annotation.Primary
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.core.io.ClassPathResource
 import org.springframework.stereotype.Component
 import java.util.*
@@ -24,8 +24,8 @@ private val logger = KotlinLogging.logger { }
  * 스크립트 한 번의 실행이 곧 원자 단위라 "전부 충분할 때만 전부 차감"이 보장된다.
  * op_id를 스크립트가 기록하므로 같은 op_id로 다시 실행해도 두 번 차감되지 않는다.
  */
-@Primary
 @Component
+@ConditionalOnProperty(name = [StockStrategy.PROPERTY], havingValue = "redis")
 class RedisStockWriterImpl(
     private val redissonClient: RedissonClient,
     private val stockOpLogger: StockOpLogger,

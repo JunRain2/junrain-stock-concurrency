@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * 데드락은 InnoDB의 행 잠금 순서에서만 생기므로 구현체를 직접 주입해 확인한다.
  * 유스케이스도 Reservation도 거치지 않는다 — 여기서 볼 것은 [MySqlStockWriterImpl]의 UPDATE 하나뿐이다.
  */
-@SpringBootTest
+@SpringBootTest(properties = ["stock.strategy=single-update"])
 class MySqlStockWriterImplTest {
     @Autowired
     private lateinit var stockWriter: MySqlStockWriterImpl
