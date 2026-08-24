@@ -1,6 +1,7 @@
 package com.junrain.stock.application.product
 
 import com.junrain.stock.application.common.CursorPageResponse
+import com.junrain.stock.application.product.port.ProductReader
 import com.junrain.stock.application.product.query.ProductSorter
 import com.junrain.stock.domain.common.Money
 import com.querydsl.core.annotations.QueryProjection

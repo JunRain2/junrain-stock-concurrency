@@ -1,7 +1,7 @@
 package com.junrain.stock.infra.product
 
-import com.junrain.stock.domain.product.ProductStockService
-import com.junrain.stock.domain.product.StockChange
+import com.junrain.stock.application.product.port.StockChange
+import com.junrain.stock.application.product.port.StockReservation
 import com.junrain.stock.infra.product.mysql.JpaProductRepository
 import com.junrain.stock.infra.product.redis.RedisStockRepository
 import org.springframework.stereotype.Service
@@ -9,11 +9,11 @@ import java.util.*
 import java.util.concurrent.Executor
 
 @Service
-class ProductStockServiceImpl(
+class StockReservationImpl(
     private val redisStockRepository: RedisStockRepository,
     private val jpaProductRepository: JpaProductRepository,
     private val asyncExecutor: Executor,
-) : ProductStockService {
+) : StockReservation {
     override fun reserve(vararg changes: StockChange) {
         val requestKey = UUID.randomUUID().toString()
         redisStockRepository.decreaseStock(requestKey, *changes)

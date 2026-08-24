@@ -1,9 +1,9 @@
 package com.junrain.stock.infra.product
 
-import com.junrain.stock.domain.common.InfraException
+import com.junrain.stock.application.product.port.StockChange
+import com.junrain.stock.application.product.port.StockReservation
 import com.junrain.stock.config.RedisTestContainersConfig
-import com.junrain.stock.domain.product.ProductStockService
-import com.junrain.stock.domain.product.StockChange
+import com.junrain.stock.domain.common.InfraException
 import com.junrain.stock.infra.product.batch.StockConsistencyBatchJob
 import eu.rekawek.toxiproxy.model.ToxicDirection
 import org.junit.jupiter.api.AfterEach
@@ -23,9 +23,9 @@ import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 
 @SpringBootTest
-class ProductStockServiceImplIntegrationTest {
+class StockReservationImplIntegrationTest {
     @Autowired
-    private lateinit var productStockService: ProductStockService
+    private lateinit var stockReservation: StockReservation
 
     @Autowired
     private lateinit var redissonClient: RedissonClient
@@ -74,7 +74,7 @@ class ProductStockServiceImplIntegrationTest {
         redissonClient.getAtomicLong("product_stock:$productId").set(initialStock)
 
         // when
-        productStockService.reserve(StockChange(productId, reserveQuantity))
+        stockReservation.reserve(StockChange(productId, reserveQuantity))
 
         // then
         val remainingStock = redissonClient.getAtomicLong("product_stock:$productId").get()
@@ -96,7 +96,7 @@ class ProductStockServiceImplIntegrationTest {
         redissonClient.getAtomicLong("product_stock:$productId").set(initialStock)
 
         // when
-        productStockService.cancelReservation(StockChange(productId, cancelQuantity))
+        stockReservation.cancelReservation(StockChange(productId, cancelQuantity))
 
         // then
         val remainingStock = redissonClient.getAtomicLong("product_stock:$productId").get()
@@ -119,7 +119,7 @@ class ProductStockServiceImplIntegrationTest {
         redissonClient.getAtomicLong("product_stock:$product2Id").set(initialStock2)
 
         // when
-        productStockService.reserve(
+        stockReservation.reserve(
             StockChange(product1Id, 10L),
             StockChange(product2Id, 20L),
         )
@@ -146,7 +146,7 @@ class ProductStockServiceImplIntegrationTest {
         // when & then - 연결 실패로 인한 예외 발생
         val exception =
             assertThrows<Exception> {
-                productStockService.reserve(StockChange(productId, reserveQuantity))
+                stockReservation.reserve(StockChange(productId, reserveQuantity))
             }
         assertNotNull(exception)
         // RedisConnectionFailureException이 발생할 수 있음
@@ -169,7 +169,7 @@ class ProductStockServiceImplIntegrationTest {
         // when & then
         val exception =
             assertThrows<InfraException> {
-                productStockService.cancelReservation(StockChange(productId, cancelQuantity))
+                stockReservation.cancelReservation(StockChange(productId, cancelQuantity))
             }
         assertNotNull(exception)
 
@@ -199,7 +199,7 @@ class ProductStockServiceImplIntegrationTest {
             // when & then - 타임아웃 예외 발생
             val exception =
                 assertThrows<InfraException> {
-                    productStockService.reserve(StockChange(productId, reserveQuantity))
+                    stockReservation.reserve(StockChange(productId, reserveQuantity))
                 }
             assertNotNull(exception)
 
@@ -231,7 +231,7 @@ class ProductStockServiceImplIntegrationTest {
             List(concurrentRequests) {
                 Callable {
                     try {
-                        productStockService.reserve(StockChange(productId, reserveQuantity))
+                        stockReservation.reserve(StockChange(productId, reserveQuantity))
                         true
                     } catch (e: Exception) {
                         false
@@ -266,7 +266,7 @@ class ProductStockServiceImplIntegrationTest {
         // when & then - 재고 부족으로 예외 발생
         val exception =
             assertThrows<Exception> {
-                productStockService.reserve(StockChange(productId, reserveQuantity))
+                stockReservation.reserve(StockChange(productId, reserveQuantity))
             }
         assertNotNull(exception)
         println("재고 부족 예외: ${exception::class.simpleName} - ${exception.message}")
@@ -293,7 +293,7 @@ class ProductStockServiceImplIntegrationTest {
 
         val exception =
             assertThrows<InfraException> {
-                productStockService.cancelReservation(StockChange(productId, cancelQuantity))
+                stockReservation.cancelReservation(StockChange(productId, cancelQuantity))
             }
         assertNotNull(exception)
 
@@ -328,8 +328,8 @@ class ProductStockServiceImplIntegrationTest {
         redissonClient.getAtomicLong("product_stock:$productId").set(initialStock)
 
         // when - 같은 요청을 2번 실행
-        productStockService.reserve(StockChange(productId, reserveQuantity))
-        productStockService.reserve(StockChange(productId, reserveQuantity))
+        stockReservation.reserve(StockChange(productId, reserveQuantity))
+        stockReservation.reserve(StockChange(productId, reserveQuantity))
 
         // then - 재고는 2번 감소되어야 함 (멱등성 아님, 각각 다른 requestKey 사용)
         val finalStock = redissonClient.getAtomicLong("product_stock:$productId").get()
@@ -353,7 +353,7 @@ class ProductStockServiceImplIntegrationTest {
 
         val exception =
             assertThrows<InfraException> {
-                productStockService.cancelReservation(StockChange(productId, cancelQuantity))
+                stockReservation.cancelReservation(StockChange(productId, cancelQuantity))
             }
         assertNotNull(exception)
 
@@ -411,7 +411,7 @@ class ProductStockServiceImplIntegrationTest {
 
         val exception =
             assertThrows<InfraException> {
-                productStockService.cancelReservation(StockChange(productId, cancelQuantity))
+                stockReservation.cancelReservation(StockChange(productId, cancelQuantity))
             }
         assertNotNull(exception)
 
@@ -473,13 +473,13 @@ class ProductStockServiceImplIntegrationTest {
         redisProxy.disable()
 
         assertThrows<InfraException> {
-            productStockService.cancelReservation(StockChange(product1Id, 10L))
+            stockReservation.cancelReservation(StockChange(product1Id, 10L))
         }
         assertThrows<InfraException> {
-            productStockService.cancelReservation(StockChange(product2Id, 20L))
+            stockReservation.cancelReservation(StockChange(product2Id, 20L))
         }
         assertThrows<InfraException> {
-            productStockService.cancelReservation(StockChange(product3Id, 30L))
+            stockReservation.cancelReservation(StockChange(product3Id, 30L))
         }
 
         // 에러 로그 3개 확인

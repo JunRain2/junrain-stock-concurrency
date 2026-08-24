@@ -1,6 +1,6 @@
-package com.junrain.stock.domain.product
+package com.junrain.stock.application.product.port
 
-interface ProductStockService {
+interface StockReservation {
     fun reserve(vararg changes: StockChange)
 
     fun cancelReservation(vararg changes: StockChange)

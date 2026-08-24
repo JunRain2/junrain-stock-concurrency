@@ -1,14 +1,14 @@
 package com.junrain.stock.infra.product.querydsl
 
-import com.junrain.stock.domain.member.QMember
-import com.junrain.stock.application.product.ProductReader
 import com.junrain.stock.application.product.GetProductDetail
 import com.junrain.stock.application.product.GetProductPage
 import com.junrain.stock.application.product.QGetProductDetail_Result
 import com.junrain.stock.application.product.QGetProductDetail_Result_Owner
 import com.junrain.stock.application.product.QGetProductPage_Result
 import com.junrain.stock.application.product.QGetProductPage_Result_Owner
+import com.junrain.stock.application.product.port.ProductReader
 import com.junrain.stock.application.product.query.ProductSorter
+import com.junrain.stock.domain.member.QMember
 import com.junrain.stock.domain.product.QProduct
 import com.querydsl.core.BooleanBuilder
 import com.querydsl.jpa.impl.JPAQueryFactory

@@ -1,8 +1,8 @@
 package com.junrain.stock.infra.product
 
+import com.junrain.stock.application.product.port.StockChange
 import com.junrain.stock.domain.product.Product
 import com.junrain.stock.domain.product.ProductRepository
-import com.junrain.stock.domain.product.StockChange
 import com.junrain.stock.domain.product.exception.ProductDuplicateCodeException
 import com.junrain.stock.domain.product.exception.ProductNotFoundException
 import com.junrain.stock.infra.product.mysql.JdbcProductRepository

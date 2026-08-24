@@ -1,5 +1,6 @@
 package com.junrain.stock.application.product
 
+import com.junrain.stock.application.product.port.ProductReader
 import com.junrain.stock.domain.product.exception.ProductNotFoundException
 import com.querydsl.core.annotations.QueryProjection
 import org.springframework.stereotype.Service

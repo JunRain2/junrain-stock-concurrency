@@ -18,17 +18,18 @@ src/main/kotlin/com/junrain/stock/
 ├── application/                        # 유스케이스
 │   ├── common/                         # CursorPageResponse
 │   ├── member/                         # VerifyMemberIsSeller
-│   └── product/                        # RegisterProducts, GetProductDetail, GetProductPage, ProductReader(조회 포트)
+│   └── product/                        # RegisterProducts, GetProductDetail, GetProductPage
+│       ├── port/                       # ProductReader(조회 포트), StockReservation(재고 변경 포트, StockChange)
 │       └── query/                      # ProductSorter
 ├── domain/                             # 순수 비즈니스 로직
 │   ├── common/                         # BaseEntity, BaseException, ErrorCode, Money, LockRepository
 │   ├── member/                         # Member, MemberRepository, MemberType, exception/*
-│   └── product/                        # Product, ProductRepository, ProductStockService, OwnerValidationService, ProductCodeUniqueness
+│   └── product/                        # Product, ProductRepository, OwnerValidationService, ProductCodeUniqueness
 │       ├── vo/                         # ProductCode
 │       └── exception/                  # ProductNotFoundException, ProductOutOfStockException 등
 └── infra/                              # 아웃바운드 어댑터
     ├── common/                         # AsyncExecutorConfig, ErrorLogRepository, AuditingConfig, QueryDslConfig, RedisLockRepositoryImpl
-    └── product/                        # ProductRepositoryImpl, ProductStockServiceImpl, OwnerValidationServiceImpl
+    └── product/                        # ProductRepositoryImpl, StockReservationImpl, OwnerValidationServiceImpl
         ├── mysql/                      # JdbcProductRepository, JpaProductRepository
         ├── redis/                      # RedisStockRepository
         ├── querydsl/                   # QueryDslProductReader, QueryDslProductSorter
@@ -51,6 +52,7 @@ src/main/kotlin/com/junrain/stock/
 - Command / Query / Result DTO는 해당 유스케이스 클래스 안에 중첩 선언
 - 포트는 계약을 소유한 계층에 둔다. 시그니처에 등장하는 타입보다 아래 계층으로는 내려갈 수 없다
   - 조회 포트 `ProductReader`는 리드모델(`GetProductDetail.Result` 등)을 반환하므로 `application`, 구현은 `infra/product/querydsl`
+  - 재고 변경 포트 `StockReservation`도 `application/product/port`, 구현은 `infra/product`(`StockReservationImpl`). Redis 예약 재고 + MySQL 확정 재고를 다루는 아웃바운드 포트라 도메인 서비스가 아니다
   - `Repository`라는 이름은 애그리거트 루트를 다루는 포트에만 쓴다 (`ProductRepository`). 리드모델을 반환하는 조회 포트는 `Reader`
 - Entity는 계층 경계를 넘지 않는다
   - `domain` 포트가 Entity를 주고받는 것은 정상 (`ProductRepository.saveAll(List<Product>)`)

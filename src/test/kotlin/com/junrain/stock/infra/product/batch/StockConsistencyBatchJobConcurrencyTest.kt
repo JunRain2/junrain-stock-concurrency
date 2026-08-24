@@ -1,9 +1,9 @@
 package com.junrain.stock.infra.product.batch
 
 import com.fasterxml.jackson.core.type.TypeReference
+import com.junrain.stock.application.product.port.StockChange
 import com.junrain.stock.infra.common.jdbc.ErrorLogRepository
 import com.junrain.stock.infra.common.jdbc.ErrorLogType
-import com.junrain.stock.domain.product.StockChange
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

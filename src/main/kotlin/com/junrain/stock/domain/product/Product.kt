@@ -3,19 +3,22 @@ package com.junrain.stock.domain.product
 import com.junrain.stock.domain.common.BaseEntity
 import com.junrain.stock.domain.common.Money
 import com.junrain.stock.domain.product.vo.ProductCode
-import jakarta.persistence.*
+import jakarta.persistence.AttributeOverride
+import jakarta.persistence.AttributeOverrides
+import jakarta.persistence.Column
+import jakarta.persistence.Embedded
+import jakarta.persistence.Entity
+import jakarta.persistence.Table
 
 @Entity
 @Table(name = "products")
 class Product(
-    @Column(name = "owner_id")
-    val ownerId: Long,
+    @Column(name = "owner_id") val ownerId: Long,
     @Embedded @AttributeOverride(
         name = "code",
         column = Column(name = "product_code", unique = true),
     ) val code: ProductCode,
-    @Column(name = "stock")
-    val stock: Long,
+    @Column(name = "stock") val stock: Long,
     price: Money,
     name: String,
 ) : BaseEntity() {
