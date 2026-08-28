@@ -28,6 +28,9 @@ services:
       # 커넥션 풀은 통제 변수다. 요청당 풀 획득 횟수가 바뀌면(예: 커밋 1회 -> 2회)
       # 같은 풀 크기에서 동시성 상한이 그만큼 깎이므로, 비교 측정 때 여기를 움직여 가른다.
       SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "${HIKARI_POOL_SIZE:-10}"
+      # 점유 시간도 통제 변수다. 기본 10분이면 만기가 시나리오(약 4분) 밖이라
+      # 회수 스케줄러가 부하 중에 한 번도 일하지 않는다. 회수를 재려면 여기를 낮춘다.
+      STOCK_RESERVE_HOLDMINUTES: "${HOLD_MINUTES:-10}"
       # MaxRAMPercentage는 mem_limit 기준. 시작=최대로 묶어 측정 중 힙 리사이즈를 막는다.
       # AlwaysPreTouch는 힙 페이지를 기동 때 미리 만져 측정 중 페이지 폴트를 없앤다.
       JAVA_TOOL_OPTIONS: >-
