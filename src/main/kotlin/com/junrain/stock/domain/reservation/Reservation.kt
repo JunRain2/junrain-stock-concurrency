@@ -27,7 +27,7 @@ class Reservation(
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "items", columnDefinition = "json")
     val items: List<Item>,
-    /** 점유 만료 시각. 표시·정산용이고, 실제 회수는 Redis의 만료 인덱스가 기준이다 */
+    /** 점유 만료 시각. 이 값으로 회수를 돌리지 않는다 - 회수 기준은 재고를 차감한 저장소가 따로 들고 있다 */
     @Column(name = "expire_at", nullable = false)
     val expireAt: LocalDateTime,
 ) : BaseEntity() {

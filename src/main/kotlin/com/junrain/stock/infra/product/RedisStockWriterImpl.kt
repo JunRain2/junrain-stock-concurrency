@@ -33,14 +33,7 @@ class RedisStockWriterImpl(
     private val redissonClient: RedissonClient,
     meterRegistry: MeterRegistry,
 ) : StockWriter {
-    /**
-     * 반환값은 항상 `{status, index}` 두 칸이다. index는 실패한 상품의 순번(1-based)이고 실패가 아니면 0이다.
-     *
-     * - 성공한 경우 `{0, 0R}`. 이때만 재고가 움직이고 점유 기록이 남는다
-     * - 같은 trxId가 이미 처리된 경우 `{1, 0}`. 아무것도 건드리지 않는다
-     * - 하나라도 재고가 부족한 경우 `{2, index}`. 검사를 모두 통과해야 차감하므로 부분 차감은 없다
-     * - 재고 키가 없는 상품이 섞인 경우 `{3, index}`. 마찬가지로 아무것도 건드리지 않는다
-     */
+    /** 반환 규약(`{status, index}`)은 스크립트 헤더에 있다 */
     private val reserveScript = ClassPathResource("redis/reserve_stock.lua").inputStream.bufferedReader().use { it.readText() }
 
     /** 적용 여부를 모른 채 끝난 차감 횟수. 만료까지 이어지는 언더셀 누수의 상한을 이 값으로 가늠한다 */
