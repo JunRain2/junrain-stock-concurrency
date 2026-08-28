@@ -6,9 +6,6 @@
 -- 돌기 때문에 1회 소비량이 사다리에 비례해 늘어나며, 여유를 크게 두어 사다리를 올릴 때마다
 -- 재계산하지 않아도 되게 한다.
 --
--- stock_items는 SKIP LOCKED 전략에서만 쓴다. 전략과 무관하게 늘 채우면 쓰지도 않는 248만 행을
--- 매번 심게 되므로 seed-stock-items.sql로 분리했다 - reset.sh가 전략을 보고 적용한다.
---
 -- 주의: ddl-auto=create 이므로 앱이 기동한 뒤에 적용해야 한다.
 
 SET SESSION cte_max_recursion_depth = 1000000;
@@ -16,7 +13,6 @@ SET SESSION cte_max_recursion_depth = 1000000;
 TRUNCATE TABLE reservations;
 TRUNCATE TABLE products;
 TRUNCATE TABLE members;
-TRUNCATE TABLE stock_items;
 
 INSERT INTO members (id, member_type, member_name, created_at, updated_at)
 VALUES (1, 'SELLER', 'BenchSeller', NOW(), NOW());

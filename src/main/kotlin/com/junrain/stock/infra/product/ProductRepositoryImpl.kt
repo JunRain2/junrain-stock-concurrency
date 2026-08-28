@@ -5,11 +5,9 @@ import com.junrain.stock.domain.product.ProductRepository
 import com.junrain.stock.domain.product.exception.ProductDuplicateCodeException
 import com.junrain.stock.domain.product.exception.ProductNotFoundException
 import com.junrain.stock.infra.product.mysql.JdbcProductRepository
-import com.junrain.stock.infra.product.mysql.JdbcStockItemRepository
 import com.junrain.stock.infra.product.mysql.JpaProductRepository
 import com.junrain.stock.infra.product.redis.RedisStockSeeder
 import io.github.oshai.kotlinlogging.KotlinLogging
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Repository
 import java.time.LocalDateTime
@@ -21,10 +19,8 @@ private val logger = KotlinLogging.logger { }
 class ProductRepositoryImpl(
     private val jpaProductRepository: JpaProductRepository,
     private val jdbcProductRepository: JdbcProductRepository,
-    private val jdbcStockItemRepository: JdbcStockItemRepository,
     private val redisStockSeeder: RedisStockSeeder,
     private val asyncExecutor: Executor,
-    @param:Value(StockStrategy.PLACEHOLDER) private val stockStrategy: StockStrategy,
 ) : ProductRepository {
     override fun save(product: Product): Product {
         val product =
@@ -41,20 +37,14 @@ class ProductRepositoryImpl(
     }
 
     /**
-     * 활성 전략이 실제로 읽는 저장소에만 초기 재고를 심는다.
+     * 예약이 읽는 저장소는 Redis뿐이므로 초기 재고도 거기에만 심는다.
      *
-     * 세 곳을 전부 채우면 쓰지 않는 저장소까지 같이 커지고(stock_items는 재고 1개당 1행이다),
-     * 예약이 어느 저장소를 읽고 있는지도 흐려진다. products.stock은 위 INSERT가 이미 넣었으므로
-     * [StockStrategy.SINGLE_UPDATE]는 여기서 할 일이 없다.
+     * products.stock은 위 INSERT가 이미 넣었지만 예약 경로가 읽지 않는다 - 등록 시점의 원본일 뿐이다.
      */
     private fun seedStock(
         productId: Long,
         quantity: Long,
-    ) = when (stockStrategy) {
-        StockStrategy.REDIS -> redisStockSeeder.seed(productId = productId, quantity = quantity)
-        StockStrategy.SKIP_LOCKED -> jdbcStockItemRepository.insertAvailable(productId = productId, quantity = quantity)
-        StockStrategy.SINGLE_UPDATE -> Unit
-    }
+    ) = redisStockSeeder.seed(productId = productId, quantity = quantity)
 
     override fun saveAll(products: List<Product>): List<Result<Product>> {
         val createdAt = LocalDateTime.now()
@@ -84,15 +74,11 @@ class ProductRepositoryImpl(
                 }
             }
 
-        if (stockStrategy == StockStrategy.REDIS) insertRedis(productResults)
+        insertRedis(productResults)
 
         return productResults
     }
 
-    /**
-     * ponytail: 대량 등록은 Redis만 채운다. SKIP_LOCKED에서 대량 등록한 상품은 stock_items가 비어
-     * 예약이 전부 재고 없음으로 실패한다 - 대량 경로를 그 전략에서 쓸 일이 생기면 그때 채운다.
-     */
     private fun insertRedis(productResults: List<Result<Product>>) {
         productResults
             .mapNotNull { it.getOrNull() }

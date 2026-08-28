@@ -7,13 +7,15 @@ import org.springframework.context.annotation.Configuration
 @Configuration
 class RedissonConfig {
     /**
-     * 재시도를 끈다(기본 3회). **이 설정이 오버셀을 막는 유일한 장치다.**
+     * 재시도를 끈다(기본 3회).
      *
-     * 차감 스크립트에는 멱등키가 없다. 응답 타임아웃 뒤 커넥션 계층이 같은 명령을 다시 보내면
-     * 그대로 두 번 차감되고, 그 순간 재고는 실제보다 적어지는 게 아니라 **팔린 양이 부풀어** 오버셀이 된다.
+     * 점유 스크립트는 `reservation:{trxId}` 존재 검사로 멱등하므로 같은 명령이 두 번 도착해도
+     * 두 번 차감되지 않는다. 즉 이 설정은 더 이상 오버셀을 막는 장치가 아니다 - 그 책임은
+     * 설정값에서 스크립트 안으로 옮겨 갔다.
      *
-     * 응답을 못 받은 요청은 판정하지 않고 409로 끝낸다. 적용됐다면 언더셀로 남고,
-     * 그건 [com.junrain.stock.infra.product.redis.StockReconciler]가 총량으로 되돌린다.
+     * 그래도 꺼 두는 이유는 다르다. Redis가 느려진 상황에서 재시도는 이미 밀린 단일 스레드에
+     * 같은 부하를 배로 얹는다. 응답을 못 받은 요청은 409로 끝내고, 적용됐다면 만료 시각에 회수된다.
+     * 재시도를 켜는 것 자체는 이제 안전하다.
      */
     @Bean
     fun disableRedissonRetry() = RedissonAutoConfigurationCustomizer { it.useSingleServer().setRetryAttempts(0) }

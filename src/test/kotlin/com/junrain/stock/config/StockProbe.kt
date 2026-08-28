@@ -1,44 +1,32 @@
 package com.junrain.stock.config
 
-import com.junrain.stock.infra.product.StockStrategy
+import com.junrain.stock.infra.product.RedisStockWriterImpl
 import org.redisson.api.RedissonClient
-import org.springframework.beans.factory.annotation.Value
-import org.springframework.jdbc.core.JdbcTemplate
+import org.redisson.client.codec.StringCodec
 import org.springframework.stereotype.Component
 
 /**
- * 확정 재고를 읽는 테스트 전용 프로브.
+ * 예약 가능한 재고와 점유 기록을 읽는 테스트 전용 프로브.
  *
  * 통합 테스트가 실제 저장소를 확인하는 건 정상이다. 다만 저장소를 아는 지점을 여기 한 곳으로 모아,
- * 차감 전략이 바뀌어도 테스트 본문은 그대로 두게 한다. 읽을 저장소는 구현체를 고르는 것과 같은
- * `stock.strategy`가 정하므로 전략을 바꿀 때 여기를 손으로 맞출 일이 없다.
+ * 키 형식이 바뀌어도 테스트 본문은 그대로 두게 한다.
  */
 @Component
 class StockProbe(
-    private val jdbcTemplate: JdbcTemplate,
     private val redissonClient: RedissonClient,
-    @param:Value(StockStrategy.PLACEHOLDER) private val stockStrategy: StockStrategy,
 ) {
-    fun stockOf(productId: Long): Long =
-        when (stockStrategy) {
-            StockStrategy.REDIS -> {
-                redissonClient.getAtomicLong("product_stock:$productId").get()
-            }
+    fun stockOf(productId: Long): Long = redissonClient.getAtomicLong("available_stock:$productId").get()
 
-            StockStrategy.SKIP_LOCKED -> {
-                jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM stock_items WHERE product_id = ? AND status = 'AVAILABLE'",
-                    Long::class.java,
-                    productId,
-                ) ?: 0
-            }
+    /** 되돌릴 수량. 재고 키 -> 수량 */
+    fun reservationBody(trxId: String): Map<String, String> =
+        redissonClient.getMap<String, String>("reservation:$trxId", StringCodec.INSTANCE).readAllMap()
 
-            StockStrategy.SINGLE_UPDATE -> {
-                jdbcTemplate.queryForObject(
-                    "SELECT stock FROM products WHERE id = ?",
-                    Long::class.java,
-                    productId,
-                ) ?: 0
-            }
-        }
+    /** 만료 회수 대상으로 등재된 trxId. 이 등재가 곧 "차감이 적용됐다"의 증거다 */
+    fun expireIndexMembers(): Set<String> =
+        redissonClient.getScoredSortedSet<String>(RedisStockWriterImpl.EXPIRE_INDEX_KEY, StringCodec.INSTANCE).readAll().toSet()
+
+    /** 만료 인덱스는 테스트 사이에 공유되는 단일 키라 직접 비워 준다 */
+    fun clearExpireIndex() {
+        redissonClient.getScoredSortedSet<String>(RedisStockWriterImpl.EXPIRE_INDEX_KEY, StringCodec.INSTANCE).delete()
+    }
 }

@@ -2,7 +2,9 @@ package com.junrain.stock.application.product
 
 import com.junrain.stock.application.product.ReserveProducts.Command
 import com.junrain.stock.application.product.ReserveProducts.Command.Change
+import com.junrain.stock.config.RedisTestContainersConfig.Companion.redisProxy
 import com.junrain.stock.config.StockProbe
+import com.junrain.stock.config.awaitRecovered
 import com.junrain.stock.domain.common.Money
 import com.junrain.stock.domain.member.Member
 import com.junrain.stock.domain.member.MemberRepository
@@ -10,18 +12,24 @@ import com.junrain.stock.domain.member.MemberType
 import com.junrain.stock.domain.product.Product
 import com.junrain.stock.domain.product.ProductRepository
 import com.junrain.stock.domain.product.exception.StockUnavailableException
+import com.junrain.stock.domain.product.exception.StockUnstableException
 import com.junrain.stock.domain.product.vo.ProductCode
 import com.junrain.stock.domain.reservation.ReservationRepository
 import com.junrain.stock.infra.product.mysql.JpaProductRepository
+import eu.rekawek.toxiproxy.model.ToxicDirection
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.assertions.withClue
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
+import org.redisson.api.RedissonClient
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import java.time.LocalDateTime
 
 @SpringBootTest
 class ReserveProductsIntegrationTest {
@@ -43,6 +51,9 @@ class ReserveProductsIntegrationTest {
     @Autowired
     private lateinit var memberRepository: MemberRepository
 
+    @Autowired
+    private lateinit var redissonClient: RedissonClient
+
     private var productId: Long = 0
     private var sellerId: Long = 0
     private val initialStock = 100L
@@ -55,6 +66,7 @@ class ReserveProductsIntegrationTest {
 
     @AfterEach
     fun tearDown() {
+        stockProbe.clearExpireIndex()
         reservationRepository.deleteAll()
         jpaProductRepository.deleteAll()
         memberRepository.deleteAll()
@@ -84,8 +96,17 @@ class ReserveProductsIntegrationTest {
 
         // then
         currentStock() shouldBe initialStock - RESERVE_QUANTITY
-        withClue("발급된 trxId로 조회되어야 합니다") {
-            reservationRepository.findByTrxId(result.trxId).shouldNotBeNull()
+        val saved =
+            withClue("발급된 trxId로 조회되어야 합니다") {
+                reservationRepository.findByTrxId(result.trxId).shouldNotBeNull()
+            }
+
+        saved.expireAt shouldBeAfter LocalDateTime.now()
+        withClue("되돌릴 수량이 Redis에 자기완결적으로 남아야 합니다") {
+            stockProbe.reservationBody(result.trxId) shouldBe mapOf("available_stock:$productId" to "$RESERVE_QUANTITY")
+        }
+        withClue("만료 회수 대상으로 등재돼야 합니다") {
+            stockProbe.expireIndexMembers() shouldBe setOf(result.trxId)
         }
     }
 
@@ -131,7 +152,7 @@ class ReserveProductsIntegrationTest {
     }
 
     @Test
-    fun `여러 상품 중 하나라도 실패하면 재고와 Reservation이 전부 롤백된다`() {
+    fun `여러 상품 중 하나라도 실패하면 재고가 그대로고 Reservation도 남지 않는다`() {
         // given
         val otherId = saveProduct("RESERVE003")
 
@@ -140,7 +161,7 @@ class ReserveProductsIntegrationTest {
             reserveProducts(Command(listOf(Change(productId, RESERVE_QUANTITY), Change(otherId, initialStock + 1))))
         }
 
-        withClue("성공했던 상품도 롤백되어야 합니다") {
+        withClue("Lua가 전부 검사한 뒤에 차감하므로 부분 차감이 없어야 합니다") {
             currentStock() shouldBe initialStock
         }
         stockOf(otherId) shouldBe initialStock
@@ -172,6 +193,42 @@ class ReserveProductsIntegrationTest {
             currentStock() shouldBe initialStock
         }
     }
+
+    /**
+     * 재고를 먼저 잡고 예약을 기록한다. 그래서 응답을 못 받으면 남는 것은 "행 없이 잡힌 재고"뿐이고,
+     * 그 회수 진입점은 MySQL이 아니라 Redis의 만료 인덱스다. 적용 여부를 판정할 이유가 없다.
+     */
+    @Nested
+    @Tag("fault")
+    inner class NetworkFault {
+        @Test
+        fun `Redis 응답이 끊기면 재시도 가능 예외를 던지고 회수 진입점을 Redis에 남긴다`() {
+            val toxic = redisProxy.toxics().timeout("timeout", ToxicDirection.DOWNSTREAM, 0)
+            try {
+                shouldThrow<StockUnstableException> {
+                    reserveProducts(Command(listOf(Change(productId, RESERVE_QUANTITY))))
+                }
+            } finally {
+                toxic.remove()
+                redissonClient.awaitRecovered()
+            }
+
+            withClue("응답만 못 받았을 뿐 차감은 적용됐습니다") {
+                currentStock() shouldBe initialStock - RESERVE_QUANTITY
+            }
+            withClue("Redis를 먼저 부르므로 예약 행은 남지 않습니다") {
+                reservationRepository.count() shouldBe 0
+            }
+
+            val trxId = stockProbe.expireIndexMembers().single()
+            withClue("등재된 기록만으로 되돌릴 수 있어야 합니다") {
+                stockProbe.reservationBody(trxId) shouldBe mapOf("available_stock:$productId" to "$RESERVE_QUANTITY")
+            }
+        }
+    }
+
+    private infix fun LocalDateTime.shouldBeAfter(other: LocalDateTime) = withClue("$this 는 $other 이후여야 합니다") { isAfter(other) shouldBe true }
+
 
     companion object {
         private const val RESERVE_QUANTITY = 10L

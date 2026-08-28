@@ -27,7 +27,7 @@ enum class ErrorCode(
     // Product
     PRODUCT_NOT_FOUND("PRO001", "상품을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
     PRODUCT_CODE_DUPLICATED("PRO002", "이미 존재하는 상품 코드입니다", HttpStatus.CONFLICT),
-    // 재시도 불가 - 정합성 위반
+    // 재시도 불가 - 요청이 현재 재고 상태와 맞지 않는다
     STOCK_UNAVAILABLE("PRO003", "재고 점유에 실패했습니다", HttpStatus.BAD_REQUEST),
     PRODUCT_ACCESS_DENIED("PRO04", "상품에 대한 권한이 없습니다.", HttpStatus.FORBIDDEN),
     PRODUCT_CREATION_ERROR("PRO05", "상품을 생성하던 중 예외가 발생했습니다.", HttpStatus.BAD_REQUEST),

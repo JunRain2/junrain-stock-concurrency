@@ -6,11 +6,18 @@ import jakarta.persistence.Entity
 import jakarta.persistence.Table
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
+import java.time.LocalDateTime
 
 /**
- * 재고 점유에 성공한 구매 요청. 점유한 상품과 수량을 JSON 한 컬럼에 담는다.
+ * 구매 요청이 점유한 상품과 수량. 항목은 JSON 한 컬럼에 담는다.
  *
  * 항목별 조회/집계를 하지 않기 때문에 자식 테이블 대신 JSON으로 둔다.
+ *
+ * 이 행은 재고 차감이 성공한 **뒤에** 저장된다. 행이 있다는 것은 차감이 확정됐다는 뜻이고,
+ * 그 역은 성립하지 않는다 - 차감 직후 죽으면 행 없이 재고만 잡힌다. 그건 만료 시각에 회수된다.
+ *
+ * 상태 컬럼이 없다. 차감 여부를 사후에 판정하지 않으므로 중간 상태를 표현할 이유가 없고,
+ * 만료·확정 같은 종료 상태는 그 유스케이스가 생길 때 붙인다.
  */
 @Entity
 @Table(name = "reservations")
@@ -20,6 +27,9 @@ class Reservation(
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "items", columnDefinition = "json")
     val items: List<Item>,
+    /** 점유 만료 시각. 표시·정산용이고, 실제 회수는 Redis의 만료 인덱스가 기준이다 */
+    @Column(name = "expire_at", nullable = false)
+    val expireAt: LocalDateTime,
 ) : BaseEntity() {
     init {
         require(trxId.isNotBlank()) { "트랜잭션 ID는 필수입니다" }

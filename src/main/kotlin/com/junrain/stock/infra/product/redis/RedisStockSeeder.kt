@@ -7,9 +7,9 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 
 /**
- * 상품 등록 시 Redis에 초기 재고를 심는다.
+ * 상품 등록 시 Redis에 예약 가능한 재고를 심는다.
  *
- * Redis 전략에서 `product_stock:{id}` 키가 곧 진실 원천이라, 키가 없는 상품은 존재하되 팔 수 없는 상품이 된다.
+ * 점유 경로는 `available_stock:{id}` 키만 보므로, 키가 없는 상품은 존재하되 팔 수 없는 상품이 된다.
  *
  * 심기는 `SETNX`다. 이미 있는 키는 건드리지 않으므로 같은 상품을 다시 심어도 재고가 부풀지 않는다.
  * 실패했을 때 그냥 다시 부르면 되고, 그래서 실패를 따로 적어 두는 장치가 필요 없다.
@@ -45,5 +45,5 @@ class RedisStockSeeder(
         batch.execute()
     }
 
-    private fun stockKey(productId: Long) = "product_stock:$productId"
+    private fun stockKey(productId: Long) = "available_stock:$productId"
 }

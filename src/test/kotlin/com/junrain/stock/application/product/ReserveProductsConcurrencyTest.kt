@@ -84,7 +84,7 @@ class ReserveProductsConcurrencyTest {
     }
 
     @Test
-    fun `여러 상품 중 하나가 동시에 소진되면 나머지 상품의 재고도 롤백된다`() {
+    fun `여러 상품 중 하나가 동시에 소진되면 나머지 상품의 재고도 그대로다`() {
         // given - 재고가 하나뿐인 상품을 끼워 대부분의 요청이 실패하게 만든다
         val abundantId = saveProduct(stock = ABUNDANT_STOCK)
         val scarceId = saveProduct(stock = 1)
@@ -95,7 +95,7 @@ class ReserveProductsConcurrencyTest {
         // then - 실패한 요청이 abundant를 줄인 채 끝났다면 재고가 더 많이 빠진다
         results.count { it.isSuccess } shouldBe 1
         stockOf(scarceId) shouldBe 0
-        withClue("실패한 요청의 재고 감소는 전부 롤백되어야 합니다") {
+        withClue("Lua가 전부 검사한 뒤에 차감하므로 실패한 요청은 아무것도 줄이지 않아야 합니다") {
             stockOf(abundantId) shouldBe ABUNDANT_STOCK - 1
         }
         reservationRepository.count() shouldBe 1
