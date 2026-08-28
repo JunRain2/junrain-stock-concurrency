@@ -4,8 +4,6 @@ import com.junrain.stock.application.product.port.StockWriter
 import com.junrain.stock.domain.product.exception.StockUnavailableException
 import com.junrain.stock.domain.product.exception.StockUnstableException
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.micrometer.core.instrument.Counter
-import io.micrometer.core.instrument.MeterRegistry
 import org.redisson.api.RScript
 import org.redisson.api.RedissonClient
 import org.redisson.client.RedisConnectionException
@@ -31,17 +29,9 @@ private val logger = KotlinLogging.logger { }
 @Component
 class RedisStockWriterImpl(
     private val redissonClient: RedissonClient,
-    meterRegistry: MeterRegistry,
 ) : StockWriter {
     /** 반환 규약(`{status, index}`)은 스크립트 헤더에 있다 */
     private val reserveScript = ClassPathResource("redis/reserve_stock.lua").inputStream.bufferedReader().use { it.readText() }
-
-    /** 적용 여부를 모른 채 끝난 차감 횟수. 만료까지 이어지는 언더셀 누수의 상한을 이 값으로 가늠한다 */
-    private val unknownOutcomes: Counter =
-        Counter
-            .builder("stock.decrease.unknown")
-            .description("적용 여부를 확인하지 못하고 실패한 재고 차감 횟수")
-            .register(meterRegistry)
 
     override fun reserve(
         trxId: String,
@@ -117,7 +107,6 @@ class RedisStockWriterImpl(
         changes: List<StockWriter.StockChange>,
         cause: Exception,
     ): StockUnstableException {
-        unknownOutcomes.increment()
         logger.error(cause) { "$reason, 대상=${changes.map { it.productId }}" }
 
         return StockUnstableException(reason, cause)
