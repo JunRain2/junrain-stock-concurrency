@@ -31,6 +31,12 @@ stock:
     # 요청 하나가 이 시간 안에 끝나지 못하면 응답 중인 예약을 회수해 버리므로, 요청 타임아웃보다 충분히 길어야 한다
     hold-minutes: 10
 
+  reclaim:
+    # 만료 회수 주기. 이 값만큼이 회수 지연의 상한에 더해진다
+    delay-seconds: 10
+    # 한 주기에 되돌릴 예약 수. 밀린 만큼은 다음 주기가 이어받는다
+    batch-size: 100
+
 management:
   endpoints:
     web:
