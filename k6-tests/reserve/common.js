@@ -34,6 +34,11 @@ export const PARAMS = {
  *
  * 단계마다 독립 시나리오 + rate 태그라 결과가 섞이지 않는다.
  * 워밍업은 threshold를 걸지 않는다 = 결과를 버린다는 뜻.
+ *
+ * VU 수는 부하 파라미터가 아니라 부하 생성기 용량이다. 모자라면 k6가 도착률을 못 맞추고
+ * dropped_iterations가 뜨면서 실행 전체가 무효가 된다 - 필요량은 rate가 아니라
+ * rate x 꼬리 지연으로 정해지므로, 중앙값이 멀쩡해도 꼬리가 두꺼우면 마른다.
+ * 상향 시 앱 OOM을 주의한다(결과 문서 10.1절).
  */
 export function buildOptions(rates) {
   // 워밍업은 사다리 최고 rate로 돈다.
@@ -47,8 +52,8 @@ export function buildOptions(rates) {
       rate: warmupRate,
       timeUnit: '1s',
       duration: `${WARMUP_SEC}s`,
-      preAllocatedVUs: Math.min(warmupRate, 1000),
-      maxVUs: Math.min(warmupRate * 3, 2500),
+      preAllocatedVUs: Math.min(warmupRate * 2, 2000),
+      maxVUs: Math.min(warmupRate * 6, 5000),
       startTime: '0s',
       // threshold를 걸지 않는다 = 결과에서 제외한다.
       tags: { rate: 'warmup' },
@@ -74,8 +79,8 @@ export function buildOptions(rates) {
       rate: rate,
       timeUnit: '1s',
       duration: `${STEP_SEC}s`,
-      preAllocatedVUs: Math.min(rate, 1000),
-      maxVUs: Math.min(rate * 3, 2500),
+      preAllocatedVUs: Math.min(rate * 2, 2000),
+      maxVUs: Math.min(rate * 6, 5000),
       startTime: `${startAt}s`,
       // 기본 30초. 포화 구간에서 매달린 이터레이션을 그만큼 기다리면 실행 시간이 배가 된다.
       gracefulStop: '10s',

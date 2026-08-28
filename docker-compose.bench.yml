@@ -25,9 +25,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/foo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
       SPRING_DATA_REDIS_HOST: redis
       SPRING_JPA_SHOW_SQL: "false"
-      # 어느 재고 전략을 잴지. 이 값만 바꾸면 같은 이미지로 세 전략을 다 돈다(리빌드 불필요).
-      # redis | skip-locked | single-update. reset.sh에도 같은 값을 준다.
-      STOCK_STRATEGY: "redis"
+      # 커넥션 풀은 통제 변수다. 요청당 풀 획득 횟수가 바뀌면(예: 커밋 1회 -> 2회)
+      # 같은 풀 크기에서 동시성 상한이 그만큼 깎이므로, 비교 측정 때 여기를 움직여 가른다.
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "${HIKARI_POOL_SIZE:-10}"
       # MaxRAMPercentage는 mem_limit 기준. 시작=최대로 묶어 측정 중 힙 리사이즈를 막는다.
       # AlwaysPreTouch는 힙 페이지를 기동 때 미리 만져 측정 중 페이지 폴트를 없앤다.
       JAVA_TOOL_OPTIONS: >-
@@ -70,7 +70,5 @@ services:
       - --max-connections=200
 
   redis:
-    # STOCK_STRATEGY가 redis가 아니어도 띄운다 -
-    # 어느 날 컨테이너가 하나 늘거나 줄면 그 차이가 결과에 섞인다.
     cpus: 1.0
     mem_limit: 512m
