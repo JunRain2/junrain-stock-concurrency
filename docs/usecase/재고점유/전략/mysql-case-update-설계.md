@@ -4,9 +4,10 @@
 |---|---|
 | 대상 | `StockWriter` 포트의 MySQL 구현. UPDATE 한 문장에 CASE로 상품별 증감을 묶는 전략 |
 | 구현체 | `MySqlStockWriterImpl`, `JdbcProductRepository.applyStockDeltas` |
-| 관련 문서 | [비즈니스 규칙](../01-비즈니스-규칙.md) |
+| 브랜치 | `strategy/mysql-case-update` (`373ab8c`) |
+| 관련 문서 | [비즈니스 규칙](../01-비즈니스-규칙.md), [측정 결과](mysql-case-update-결과.md) |
 
-`StockWriter`는 여러 구현체를 가질 수 있다. 이 문서는 그중 하나(MySQL 단일 UPDATE 전략)만 다룬다. 다른 전략(MySQL SKIP LOCKED, Redis 등)은 각각 별도 문서로 추가한다 — 이 문서를 고쳐 쓰지 않는다.
+전략은 브랜치로 나뉜다. 이 문서가 다루는 코드는 `main`이 아니라 `strategy/mysql-case-update`에 얼려 두었다.
 
 ## 목차
 
@@ -22,7 +23,7 @@
 
 ## 1. 범위
 
-`StockWriter`의 유일한 완성 구현이자 현재 유일하게 사용 중인 전략이다. 같은 포트를 만족하는 다른 전략(MySQL `SKIP LOCKED`, Redis 기반 `RedisStockWriterImpl` — 현재 `TODO` 미구현)은 이 문서의 범위 밖이며, 구현되는 시점에 각자 별도 문서로 추가한다.
+`products.stock` 한 행을 UPDATE로 직접 깎는 전략이다. 같은 포트를 만족하는 다른 전략(MySQL `SKIP LOCKED`, [Redis Lua](redis-lua-설계.md))은 각자의 브랜치와 문서에서 다룬다.
 
 전략 간 공통 계약(재시도 가능 여부, 실패 시 사용자 응답)은 [비즈니스 규칙](../01-비즈니스-규칙.md)이 정의한다. 이 문서를 포함한 구현별 문서는 그 계약을 "어떻게" 지키는지만 다룬다.
 

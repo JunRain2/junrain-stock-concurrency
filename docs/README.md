@@ -35,15 +35,18 @@ docs/
 
 설계와 결과가 같은 slug를 쓴다. slug 하나 = 구현체 하나. 이름이 갈리면 설계와 결과가 짝이라는 게 안 보인다.
 
-| slug                | 구현체                      |
-|---------------------|-----------------------------|
-| `mysql-case-update` | `MySqlStockWriterImpl`      |
-| `mysql-skip-locked` | `SkipLockedStockWriterImpl` |
-| `redis-lua`         | `RedisStockWriterImpl`      |
+| slug                | 구현체                      | 브랜치                        |
+|---------------------|-----------------------------|-------------------------------|
+| `mysql-case-update` | `MySqlStockWriterImpl`      | `strategy/mysql-case-update`  |
+| `mysql-skip-locked` | `SkipLockedStockWriterImpl` | `strategy/mysql-skip-locked`  |
+| `redis-lua`         | `RedisStockWriterImpl`      | `main`                        |
 
 ## 규칙
 
-- 새 전략을 추가할 때 기존 전략 문서를 고쳐 쓰지 않는다. 같은 slug로 설계·결과 2개를 새로 만든다.
+- **전략은 브랜치로 나눈다.** `main`은 채택한 전략 하나만 담고, 측정이 끝난 전략은 그 시점 코드를 `strategy/<slug>` 브랜치로 얼린다. 한 리포에 여럿을 두면 `@ConditionalOnProperty`와 `when(strategy)` 분기가 늘고, 결국 끝난 전략을 살려두려고 진행 중인 전략에 분기를 심게 된다.
+- **문서는 브랜치로 흩지 않는다.** 설계·결과 문서는 전부 `main`에 둔다. 비교가 이 리포의 산출물이므로 브랜치마다 사본이 갈라지면 안 된다. 얼린 브랜치가 가진 분기 시점 사본은 그 브랜치의 측정 기록과 짝이 맞으므로 그대로 둔다.
+- 결과 문서 헤더에 측정한 브랜치와 커밋 sha를 적는다. 그 sha가 곧 재현 방법이다.
+- 새 전략을 추가할 때 기존 전략 문서를 고쳐 쓰지 않는다. 같은 slug로 설계·결과 2개를 새로 만든다. 같은 slug의 설계가 바뀐 경우는 예외 — 그건 그 문서를 고쳐 쓴다.
 - 측정 결과는 `02-부하테스트-모델.md`가 정의한 시나리오·판정 기준을 그대로 쓴다. 기준을 바꾸면 기존 결과와 비교 불가이므로 모델 문서를 먼저 고친다.
 - 문서 첫머리에 대상·구현체·관련 문서를 표로 남긴다.
 - 유스케이스에 매이지 않는 문서 (아키텍처 결정, 운영 런북 등)는 `usecase/` 밖에 종류별 폴더를 만들어 둔다.
