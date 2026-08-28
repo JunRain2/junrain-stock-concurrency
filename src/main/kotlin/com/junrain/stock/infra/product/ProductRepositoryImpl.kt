@@ -7,13 +7,12 @@ import com.junrain.stock.domain.product.exception.ProductNotFoundException
 import com.junrain.stock.infra.product.mysql.JdbcProductRepository
 import com.junrain.stock.infra.product.mysql.JdbcStockItemRepository
 import com.junrain.stock.infra.product.mysql.JpaProductRepository
-import com.junrain.stock.infra.product.redis.RedisStockRepository
+import com.junrain.stock.infra.product.redis.RedisStockSeeder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Repository
 import java.time.LocalDateTime
-import java.util.*
 import java.util.concurrent.Executor
 
 private val logger = KotlinLogging.logger { }
@@ -23,7 +22,7 @@ class ProductRepositoryImpl(
     private val jpaProductRepository: JpaProductRepository,
     private val jdbcProductRepository: JdbcProductRepository,
     private val jdbcStockItemRepository: JdbcStockItemRepository,
-    private val redisStockRepository: RedisStockRepository,
+    private val redisStockSeeder: RedisStockSeeder,
     private val asyncExecutor: Executor,
     @param:Value(StockStrategy.PLACEHOLDER) private val stockStrategy: StockStrategy,
 ) : ProductRepository {
@@ -52,7 +51,7 @@ class ProductRepositoryImpl(
         productId: Long,
         quantity: Long,
     ) = when (stockStrategy) {
-        StockStrategy.REDIS -> redisStockRepository.setStockIfAbsent(productId = productId, quantity = quantity)
+        StockStrategy.REDIS -> redisStockSeeder.seed(productId = productId, quantity = quantity)
         StockStrategy.SKIP_LOCKED -> jdbcStockItemRepository.insertAvailable(productId = productId, quantity = quantity)
         StockStrategy.SINGLE_UPDATE -> Unit
     }
@@ -97,17 +96,9 @@ class ProductRepositoryImpl(
     private fun insertRedis(productResults: List<Result<Product>>) {
         productResults
             .mapNotNull { it.getOrNull() }
-            .chunked(redisStockRepository.maxSize) { chunk ->
+            .chunked(redisStockSeeder.maxSize) { chunk ->
                 asyncExecutor.execute {
-                    val stockChanges =
-                        chunk.map {
-                            StockDelta(
-                                productId = it.id,
-                                quantity = it.stock,
-                            )
-                        }
-                    val requestKey = UUID.randomUUID().toString()
-                    redisStockRepository.increaseStock(requestKey, *stockChanges.toTypedArray())
+                    redisStockSeeder.seedAll(chunk.associate { it.id to it.stock })
                 }
             }
     }

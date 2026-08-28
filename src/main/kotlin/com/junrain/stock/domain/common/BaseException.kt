@@ -10,13 +10,3 @@ abstract class BusinessException(
     val errorCode: ErrorCode,
     customMessage: String? = errorCode.message,
 ) : RuntimeException(customMessage)
-
-/**
- * 인프라 계층에서 예외 처리가 완료되었음을 표시하는 마커 예외
- *
- * 이 예외로 감싸진 경우 상위 계층에서 롤백이 불필요함을 의미합니다.
- */
-class InfraException(
-    cause: Throwable,
-    customMessage: String? = null,
-) : RuntimeException(customMessage ?: cause.message, cause)

@@ -28,9 +28,6 @@ services:
       # 어느 재고 전략을 잴지. 이 값만 바꾸면 같은 이미지로 세 전략을 다 돈다(리빌드 불필요).
       # redis | skip-locked | single-update. reset.sh에도 같은 값을 준다.
       STOCK_STRATEGY: "redis"
-      # Quartz는 클러스터 모드라 7.5초마다 QRTZ_LOCKS를 잠그고, 등록된 잡은 5분마다 돈다.
-      # 둘 다 측정과 같은 커넥션 풀을 쓴다 - 1회 실행이 4~5분이라 잡이 측정 구간 안으로 들어간다.
-      SPRING_QUARTZ_AUTO_STARTUP: "false"
       # MaxRAMPercentage는 mem_limit 기준. 시작=최대로 묶어 측정 중 힙 리사이즈를 막는다.
       # AlwaysPreTouch는 힙 페이지를 기동 때 미리 만져 측정 중 페이지 폴트를 없앤다.
       JAVA_TOOL_OPTIONS: >-

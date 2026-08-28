@@ -18,21 +18,19 @@ class ReserveProducts(
 ) {
     @Transactional
     operator fun invoke(command: Command): Result {
-        // 구매의 진입점이므로 트랜잭션 ID를 여기서 발급한다
-        val trxId = trxIdGenerator.generate()
-
         // 1. Products의 재고를 감소 - 하나라도 실패하면 예외로 트랜잭션이 롤백된다
         stockWriter.decrease(command.toStockChanges())
 
         // 2. 재고 감소에 성공하면 Reservation을 생성
-        reservationRepository.save(
-            Reservation(
-                trxId = trxId,
-                items = command.changes.map { Reservation.Item(it.productId, it.quantity) },
-            ),
-        )
+        val reservation =
+            reservationRepository.save(
+                Reservation(
+                    trxId = trxIdGenerator.generate(),
+                    items = command.changes.map { Reservation.Item(it.productId, it.quantity) },
+                ),
+            )
 
-        return Result(trxId)
+        return Result(reservation.trxId)
     }
 
     private fun Command.toStockChanges() = changes.map { StockWriter.StockChange(it.productId, it.quantity) }

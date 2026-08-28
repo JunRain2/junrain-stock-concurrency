@@ -2,6 +2,8 @@ package com.junrain.stock.infra.product
 
 import com.junrain.stock.application.product.port.StockWriter
 import com.junrain.stock.config.RedisTestContainersConfig.Companion.redisProxy
+import com.junrain.stock.config.awaitRecovered
+import com.junrain.stock.domain.product.exception.ProductNotFoundException
 import com.junrain.stock.domain.product.exception.StockUnavailableException
 import com.junrain.stock.domain.product.exception.StockUnstableException
 import eu.rekawek.toxiproxy.model.ToxicDirection
@@ -9,16 +11,12 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.assertThrows
-import org.redisson.api.RScript
 import org.redisson.api.RedissonClient
-import org.redisson.client.codec.StringCodec
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.core.io.ClassPathResource
-import java.io.File
+import org.springframework.transaction.support.TransactionTemplate
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  * 이 층에서만 확인할 수 있는 것만 남긴다.
@@ -32,10 +30,8 @@ class RedisStockWriterImplTest
     constructor(
         private val stockWriter: RedisStockWriterImpl,
         private val redissonClient: RedissonClient,
+        private val transactionTemplate: TransactionTemplate,
     ) {
-        private val script =
-            ClassPathResource("redis/decrease_stock.lua").inputStream.bufferedReader().use { it.readText() }
-
         @BeforeEach
         fun beforeEach() {
             redissonClient.keys.flushall()
@@ -50,19 +46,16 @@ class RedisStockWriterImplTest
 
         private fun stockKey(productId: Long) = "product_stock:$productId"
 
-        private fun opKey(opId: String) = "stock:op:$opId"
-
         private fun change(
             productId: Long,
             quantity: Long,
         ) = StockWriter.StockChange(productId, quantity)
 
         @Test
-        fun `하나라도 재고가 모자라면 아무것도 감소하지 않고 done으로 닫는다`() {
+        fun `하나라도 재고가 모자라면 아무것도 감소하지 않는다`() {
             seed(1, 10)
             seed(2, 1)
             seed(3, 30)
-            val offset = opLogOffset()
 
             assertThrows<StockUnavailableException> {
                 stockWriter.decrease(listOf(change(1, 1), change(2, 2), change(3, 3)))
@@ -72,82 +65,51 @@ class RedisStockWriterImplTest
             assertEquals(10, stockOf(1))
             assertEquals(1, stockOf(2))
             assertEquals(30, stockOf(3))
-
-            // 응답을 받은 실패라 적용 여부가 확정됐다. 재시도 대상이 아니므로 done으로 닫혀야 한다
-            assertTrue(opLogSince(offset).contains("done"), "비즈니스 실패도 done으로 닫혀야 한다")
         }
 
         @Test
-        fun `같은 op_id로 다시 실행해도 두 번 차감되지 않는다`() {
-            // op_id는 구현체 내부에서 발급하므로 재시도 멱등은 스크립트를 직접 돌려야 확인된다
+        fun `차감을 감싼 트랜잭션이 롤백돼도 재고는 그대로 빠져 있다`() {
+            // 의도된 언더셀이다. 인라인 보상을 두면 정합 배치와 함께 이중 증가 = 오버셀이 되므로
+            // 증가 주체를 StockReconciler 하나로 묶었다. 되돌리는 건 그쪽 몫이다
             seed(1, 10)
-            val opId = "fixed-op-id"
 
-            repeat(2) { evalScript(opId, productId = 1, quantity = 3) }
+            assertThrows<IllegalStateException> {
+                transactionTemplate.execute {
+                    stockWriter.decrease(listOf(change(1, 3)))
+                    error("Reservation 저장 실패")
+                }
+            }
 
             assertEquals(7, stockOf(1))
         }
 
-        private fun evalScript(
-            opId: String,
-            productId: Long,
-            quantity: Long,
-        ): List<Long> =
-            redissonClient.getScript(StringCodec.INSTANCE).eval(
-                RScript.Mode.READ_WRITE,
-                script,
-                RScript.ReturnType.MULTI,
-                listOf<Any>(opKey(opId), stockKey(productId)),
-                "86400",
-                quantity.toString(),
-            )
+        @Test
+        fun `없는 상품이 섞이면 증가도 전부 취소된다`() {
+            // 부분 증가는 되돌릴 방법이 없다. 되돌리려면 감소해야 하고 그게 곧 오버셀이다
+            seed(1, 10)
+
+            assertThrows<ProductNotFoundException> {
+                stockWriter.increase(listOf(change(1, 5), change(2, 5)))
+            }
+
+            assertEquals(10, stockOf(1))
+        }
 
         @Nested
         @Tag("fault")
         inner class NetworkFault {
             @Test
-            fun `Redis 응답이 끊기면 재시도 가능 예외로 바꾸고 pending만 남는다`() {
+            fun `Redis 응답이 끊기면 재시도 가능 예외로 바꾼다`() {
+                // 적용 여부는 판정하지 않는다. 적용됐다면 언더셀로 남고 정합 배치가 되돌린다
                 seed(1, 10)
-                val offset = opLogOffset()
 
                 val toxic = redisProxy.toxics().timeout("timeout", ToxicDirection.DOWNSTREAM, 0)
                 try {
                     assertThrows<StockUnstableException> { stockWriter.decrease(listOf(change(1, 1))) }
                 } finally {
                     toxic.remove()
-                    awaitConnectionRecovered()
+                    redissonClient.awaitRecovered()
                 }
-
-                val appended = opLogSince(offset)
-                assertTrue(appended.contains("pending"), "pending 기록이 남아야 한다")
-                assertTrue(!appended.contains("done"), "적용 여부를 모르므로 done은 없어야 한다")
             }
-
-            /**
-             * 토식을 걷어도 커넥션 풀은 곧바로 회복되지 않는다.
-             * 프록시를 테스트 클래스끼리 공유하므로, 상처 난 커넥션을 다음 테스트에 넘기지 않고 여기서 회복시킨다.
-             */
-            private fun awaitConnectionRecovered() {
-                repeat(RECOVERY_ATTEMPTS) {
-                    runCatching { redissonClient.keys.count() }.onSuccess { return }
-                    Thread.sleep(RECOVERY_INTERVAL_MILLIS)
-                }
-                error("Redis 커넥션이 회복되지 않았습니다.")
-            }
-        }
-
-        private fun opLogFile() = File("logs/stock-op.log")
-
-        private fun opLogOffset() = opLogFile().takeIf { it.exists() }?.length() ?: 0
-
-        private fun opLogSince(offset: Long): String =
-            opLogFile().inputStream().use {
-                it.skip(offset)
-                it.readBytes().decodeToString()
-            }
-
-        companion object {
-            private const val RECOVERY_ATTEMPTS = 20
-            private const val RECOVERY_INTERVAL_MILLIS = 200L
         }
     }
