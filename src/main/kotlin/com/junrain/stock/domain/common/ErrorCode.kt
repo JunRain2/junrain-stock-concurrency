@@ -23,6 +23,8 @@ enum class ErrorCode(
     // Common
     COMMON_INVALID_INPUT("COM001", "잘못된 입력값입니다", HttpStatus.BAD_REQUEST),
     COMMON_INTERNAL_ERROR("COM002", "내부 서버 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
+    // 재시도 가능 - 커넥션 고갈 같은 인프라 일시 장애. 도메인과 무관해 어느 경로에서든 난다
+    COMMON_UNAVAILABLE("COM003", "일시적인 문제로 처리하지 못했습니다. 잠시 후 다시 시도해 주세요", HttpStatus.CONFLICT),
 
     // Product
     PRODUCT_NOT_FOUND("PRO001", "상품을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
