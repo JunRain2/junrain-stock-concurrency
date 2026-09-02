@@ -25,9 +25,13 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/foo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
       SPRING_DATA_REDIS_HOST: redis
       SPRING_JPA_SHOW_SQL: "false"
+      # OSIV도 통제 변수다. 켜면 요청 하나가 커넥션을 둘 쥐어 동시성 상한이 반으로 깎인다.
+      SPRING_JPA_OPEN_IN_VIEW: "${OPEN_IN_VIEW:-false}"
       # 커넥션 풀은 통제 변수다. 요청당 풀 획득 횟수가 바뀌면(예: 커밋 1회 -> 2회)
       # 같은 풀 크기에서 동시성 상한이 그만큼 깎이므로, 비교 측정 때 여기를 움직여 가른다.
       SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "${HIKARI_POOL_SIZE:-10}"
+      # 청크 크기도 통제 변수다. 이미지를 다시 굽지 않고 스윕하려고 여기로 뺐다.
+      BULK_INSERT_CHUNK_SIZE: "${CHUNK_SIZE:-1000}"
       # 점유 시간도 통제 변수다. 기본 10분이면 만기가 시나리오(약 4분) 밖이라
       # 회수 스케줄러가 부하 중에 한 번도 일하지 않는다. 회수를 재려면 여기를 낮춘다.
       STOCK_RESERVE_HOLDMINUTES: "${HOLD_MINUTES:-10}"

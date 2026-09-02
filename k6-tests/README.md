@@ -13,16 +13,16 @@ k6-tests/
 │   └── run.sh                       # A → B 순차 실행
 │
 ├── registration/                    # 상품 등록 API (POST /api/v1/products/bulk)
-│   ├── step1-basic-performance.js
-│   ├── step2-concurrent-brands.js
-│   ├── step3-extreme-load.js
-│   └── test-data-registration.sql
+│   ├── common.js                    # 행 생성, 행/초 메트릭, 결과 리포트
+│   ├── scenario-a-batch-size.js     # A: 배치 크기 (분모)
+│   ├── scenario-b-concurrent.js     # B: 동시 요청 (커넥션 압박)
+│   ├── scenario-c-duplicate-ratio.js # C: 중복 비율
+│   ├── scenario-d-chunk-size.js     # D: 청크 크기
+│   ├── sweep-chunk.sh               # D 스윕 (값마다 앱 재기동)
+│   ├── seed.sql                     # 판매자 10명, products 비움
+│   ├── reset.sh
+│   └── run.sh                       # A → B(5수준) → C
 │
-├── common/                          # registration 전용 공통 유틸
-│   ├── common.js
-│   └── clear-redis.sh
-│
-├── run-registration-tests.sh
 └── results/
 ```
 
@@ -89,25 +89,64 @@ VU가 아니라 **초당 요청 수를 고정**한다(`constant-arrival-rate`). 
 
 ## 상품 등록 API
 
+시나리오 설계·판정 기준은 **[docs/usecase/상품등록/02-부하테스트-모델.md](../docs/usecase/상품등록/02-부하테스트-모델.md)** 에 있다. 아래는 실행법만.
+
 ```bash
-mysql -u root -p1234 foo < k6-tests/registration/test-data-registration.sql
-
-# 전체 (약 35분)
-./k6-tests/run-registration-tests.sh
-
-# 개별
-k6 run --env BASE_URL=http://localhost:8080 --env OWNER_ID=1 k6-tests/registration/step1-basic-performance.js
-k6 run --env BASE_URL=http://localhost:8080 k6-tests/registration/step2-concurrent-brands.js
-k6 run --env BASE_URL=http://localhost:8080 k6-tests/registration/step3-extreme-load.js
+bash k6-tests/registration/run.sh
 ```
 
-| Step | 목적 | 시나리오 | VU | 소요 |
-|---|---|---|---|---|
-| **1** | 기본 성능 측정 | 100/500/1K/3K/5K개 × 5회 순차 | 1 | ~10분 |
-| **2** | 동시성 | 5개 브랜드 동시 등록 (3K×3 + 5K×2) | 5 | ~10분 |
-| **3** | 극한 상황 | 10개 브랜드 × 5K개 동시 등록 | 10 | ~20분 |
+개별 실행:
 
-검증 대상: 배치 크기별 처리 성능, 다중 브랜드 동시 등록, 부분 성공 처리.
+```bash
+bash k6-tests/registration/reset.sh
+k6 run --env BASE_URL=http://localhost:8080 --env OWNER_ID=1 k6-tests/registration/scenario-a-batch-size.js
+k6 run --env VUS=8 k6-tests/registration/scenario-b-concurrent.js
+k6 run k6-tests/registration/scenario-c-duplicate-ratio.js
+
+# D는 서버 설정을 바꿔야 해서 전용 러너가 앱을 값마다 다시 띄운다
+bash k6-tests/registration/sweep-chunk.sh
+```
+
+### 시나리오
+
+| | 부하 축 | 배치 | 답하는 것 |
+|---|---|---|---|
+| **A** | 배치 크기 100 / 500 / 1,000 / 5,000 | 동시 1 | 행당 비용 대 요청 고정비. 청크 크기의 근거 |
+| **B** | 동시 요청 1 / 2 / 4 / 8 / 16 (+ 피크 10×5,000) | 1,000행 | 커넥션 풀이 마르는 지점, 그리고 실제 피크 |
+| **C** | 신규 비율 100% / 50% / 0% | 5,000행 | 중복 판별(스킵 + 역조회) 경로의 비용 |
+| **D** | `chunk-size` 250 / 500 / 1,000 / 2,000 / 4,000 | 5,000행 | 청크 값 자체. 요청당 문장 수가 40 → 4로 바뀐다 |
+
+요청 하나가 초 단위라 **도착률이 아니라 동시 요청 수를 고정**한다. B는 VU 수가 달라 수준마다 k6 실행을 새로 띄우고 사이에 리셋한다.
+
+B는 VU를 판매자 10명에게 나눠 준다 — 한 owner로 몰면 `owner_id` 인덱스에 실제로는 없을 핫스팟이 생긴다.
+
+배치 1,000은 원인을 가르기 위한 값이지 최대 부하가 아니다. 실제 피크(브랜드 10곳 × 5,000행 = 동시 5만 행)는 배치를 올려 따로 돌린다. `run.sh`가 사다리 뒤에 한 번 더 돈다.
+
+```bash
+k6 run --env VUS=10 --env BATCH=5000 k6-tests/registration/scenario-b-concurrent.js
+```
+
+### 결과 읽기
+
+```
+=== A: 배치 크기 ===
+
+   행/요청   요청수      p95      행/초     성공행     실패행
+       100       20     41ms       2439       2000          0
+      5000       20    703ms       7112     100000          0
+```
+
+- **행/초** — 이 API의 처리량 단위. 요청 크기가 100배 차이 나서 요청/초로는 비교가 안 된다. 표본이 수십 건이라 중앙값을 싣는다
+- **실패행** — A·B에서 0이 아니면 코드가 겹친 것이다. 신규 삽입이 아니라 중복 스킵을 잰 실행이므로 버린다
+- **경고** — `http_req_failed > 0`(200 아닌 응답), `checks` 실패(보고된 행 수 불일치). 뜨면 그 실행은 무효다
+
+### 주의
+
+`ddl-auto=create`라 **앱 기동이 시드보다 먼저다.** `reset.sh`가 헬스체크로 강제한다.
+
+한 실행이 수십만 행을 남긴다. 리셋 없이 이어 돌리면 인덱스가 계속 커져 뒤 실행이 다른 조건을 잰다.
+
+원본 JSON은 `results/registration/`.
 
 ---
 
@@ -125,7 +164,8 @@ export MYSQL_DB=foo
 export REDIS_HOST=localhost
 export REDIS_PORT=6379
 
-export OWNER_ID=1     # 등록 API
+export OWNER_ID=1     # 등록 API (seed.sql이 심는 판매자)
+export VUS=8          # 등록 API 시나리오 B의 동시 요청 수
 ```
 
 ## 참고
