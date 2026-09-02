@@ -8,10 +8,16 @@ import jakarta.persistence.AttributeOverrides
 import jakarta.persistence.Column
 import jakarta.persistence.Embedded
 import jakarta.persistence.Entity
+import jakarta.persistence.Index
 import jakarta.persistence.Table
 
 @Entity
-@Table(name = "products")
+@Table(
+    name = "products",
+    // 상품 목록 조회가 owner_id로 거른다(QueryDslProductReader.findProductPage).
+    // 없으면 products 풀스캔이라 등록이 쌓일수록 조회가 같이 느려진다.
+    indexes = [Index(name = "idx_products_owner_id", columnList = "owner_id")],
+)
 class Product(
     @Column(name = "owner_id") val ownerId: Long,
     @Embedded @AttributeOverride(

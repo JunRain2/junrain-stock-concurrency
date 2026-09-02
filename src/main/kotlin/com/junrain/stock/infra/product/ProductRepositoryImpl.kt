@@ -10,7 +10,6 @@ import com.junrain.stock.infra.product.redis.RedisStockSeeder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Repository
-import java.time.LocalDateTime
 import java.util.concurrent.Executor
 
 private val logger = KotlinLogging.logger { }
@@ -46,46 +45,27 @@ class ProductRepositoryImpl(
         quantity: Long,
     ) = redisStockSeeder.seed(productId = productId, quantity = quantity)
 
-    override fun saveAll(products: List<Product>): List<Result<Product>> {
-        val createdAt = LocalDateTime.now()
-        val results = jdbcProductRepository.bulkInsert(products, createdAt)
-        val (ids, exceptions) = results.partition { it.isSuccess }
+    override fun saveAll(products: List<Product>): List<Result<Long>> {
+        val results = jdbcProductRepository.bulkInsert(products)
 
-        val productResults =
-            buildList<Result<Product>> {
-                ids.mapNotNull { it.getOrNull() }.chunked(1000).forEach { chunk ->
-                    val foundProducts =
-                        jpaProductRepository
-                            .findByCreatedAtAndCodeIn(createdAt, chunk)
-                    val foundCodes = foundProducts.map { it.code }.toSet()
+        seedStockAll(products, results)
 
-                    foundProducts.forEach { product ->
-                        add(Result.success(product))
-                    }
-
-                    chunk.filterNot { code -> foundCodes.contains(code) }.forEach { missingCode ->
-                        add(Result.failure(ProductDuplicateCodeException(missingCode)))
-                    }
-                }
-                exceptions.forEach { e ->
-                    e.exceptionOrNull()?.let { exception ->
-                        add(Result.failure(exception))
-                    }
-                }
-            }
-
-        insertRedis(productResults)
-
-        return productResults
+        return results
     }
 
-    private fun insertRedis(productResults: List<Result<Product>>) {
-        productResults
-            .mapNotNull { it.getOrNull() }
-            .chunked(redisStockSeeder.maxSize) { chunk ->
-                asyncExecutor.execute {
-                    redisStockSeeder.seedAll(chunk.associate { it.id to it.stock })
-                }
+    /** 삽입에 성공한 행만 골라 Redis에 초기 재고를 심는다. bulkInsert가 입력과 같은 순서로 돌려준다는 전제 위에 있다. */
+    private fun seedStockAll(
+        products: List<Product>,
+        results: List<Result<Long>>,
+    ) {
+        products
+            .zip(results)
+            .mapNotNull { (product, result) -> result.getOrNull()?.let { id -> id to product.stock } }
+            .chunked(redisStockSeeder.maxSize)
+            .forEach { chunk ->
+                // 비동기 람다가 나중에 읽을 때 내용이 바뀌어 있다. 미리 Map으로 떠서 넘긴다.
+                val quantityByProductId = chunk.toMap()
+                asyncExecutor.execute { redisStockSeeder.seedAll(quantityByProductId) }
             }
     }
 

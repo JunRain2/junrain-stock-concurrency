@@ -29,8 +29,9 @@ enum class ErrorCode(
     PRODUCT_CODE_DUPLICATED("PRO002", "이미 존재하는 상품 코드입니다", HttpStatus.CONFLICT),
     // 재시도 불가 - 요청이 현재 재고 상태와 맞지 않는다
     STOCK_UNAVAILABLE("PRO003", "재고 점유에 실패했습니다", HttpStatus.BAD_REQUEST),
-    PRODUCT_ACCESS_DENIED("PRO04", "상품에 대한 권한이 없습니다.", HttpStatus.FORBIDDEN),
-    PRODUCT_CREATION_ERROR("PRO05", "상품을 생성하던 중 예외가 발생했습니다.", HttpStatus.BAD_REQUEST),
+    PRODUCT_ACCESS_DENIED("PRO004", "상품에 대한 권한이 없습니다.", HttpStatus.FORBIDDEN),
+    // 재시도 가능 - 값이 아니라 저장이 실패한 것이라 그대로 다시 보내면 된다
+    PRODUCT_CREATION_ERROR("PRO005", "일시적인 문제로 저장하지 못했습니다. 잠시 후 그대로 다시 보내주세요", HttpStatus.CONFLICT),
     // 재시도 가능 - 인프라 일시 장애
     STOCK_UNSTABLE("PRO006", "재고 점유에 실패했습니다. 잠시 후 다시 시도해 주세요", HttpStatus.CONFLICT),
 
